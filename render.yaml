@@ -27,7 +27,7 @@ services:
     region: frankfurt
     schedule: "0 */6 * * *"  # Every 6 hours
     buildCommand: npm ci
-    startCommand: npm run scrape
+    startCommand: npm run scrape:rss
     envVars:
       - key: NODE_ENV
         value: production
