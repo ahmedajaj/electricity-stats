@@ -9,7 +9,8 @@
     "scrape": "node src/scraper.js",
     "dev": "nodemon src/server.js",
     "scheduler": "node src/scheduler.js",
-    "check": "node src/check-config.js"
+    "check": "node src/check-config.js",
+    "build": "chmod +x build.sh && ./build.sh"
   },
   "keywords": [
     "telegram",

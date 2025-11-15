@@ -143,7 +143,51 @@ curl "http://localhost:3000/api/statistics?startDate=2025-11-08&endDate=2025-11-
 
 ## 🚀 Production Deployment
 
-### Using PM2 (Recommended)
+### Deploy to Render (Free & Recommended)
+
+Render provides free hosting with persistent storage and automatic updates - perfect for this app!
+
+#### Step 1: Push to GitHub
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/yourusername/electricity-stats.git
+git push -u origin main
+```
+
+#### Step 2: Deploy on Render
+1. Sign up at [render.com](https://render.com) (free account)
+2. Click **"New +"** → **"Blueprint"**
+3. Connect your GitHub repository
+4. Render will detect `render.yaml` and create:
+   - **Web Service** (your dashboard at `your-app.onrender.com`)
+   - **Cron Job** (updates data every 6 hours)
+
+#### Step 3: Add Environment Variables
+In Render Dashboard, add these for **both services**:
+- `TELEGRAM_API_ID` - Your API ID from https://my.telegram.org/apps
+- `TELEGRAM_API_HASH` - Your API hash
+- `TELEGRAM_PHONE` - Your phone number (e.g., +380123456789)
+
+#### Step 4: Initial Data Collection
+After first deployment:
+1. Go to Render Dashboard → **Cron Job** → **Manual Trigger**
+2. Run it once to collect initial data
+3. Your web app will now show statistics!
+
+#### Features on Render:
+- ✅ **Free HTTPS** with custom domain support
+- ✅ **Persistent storage** (1GB) - your data won't disappear
+- ✅ **Auto-deploy** on git push
+- ✅ **Automatic scraping** every 6 hours
+- ✅ **Health checks** and auto-restart
+
+**Your app URL:** `https://electricity-stats.onrender.com` (or your custom name)
+
+---
+
+### Using PM2 (Local/VPS Deployment)
 
 ```bash
 # Install PM2 globally
