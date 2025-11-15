@@ -1,0 +1,12 @@
+node_modules/
+.env
+session.json
+*.log
+data/events.json
+data/update-log.txt
+.DS_Store
+.playwright-mcp/
+*.swp
+*.swo
+*~
+logs/

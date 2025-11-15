@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика Електропостачання - Русової 7А</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-icon">
+                    <span class="material-icons">electric_bolt</span>
+                </div>
+                <div class="header-text">
+                    <h1>Моніторинг Електропостачання</h1>
+                    <div class="header-meta">
+                        <span class="location">
+                            <span class="material-icons">location_on</span>
+                            Київ, Софії Русової 7А
+                        </span>
+                        <span class="divider">•</span>
+                        <span class="source">
+                            <span class="material-icons">telegram</span>
+                            <a href="https://t.me/lvivskiy7a" target="_blank">@lvivskiy7a</a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="date-range">
+                <label>
+                    Початкова дата:
+                    <input type="date" id="startDate">
+                </label>
+                <label>
+                    Кінцева дата:
+                    <input type="date" id="endDate">
+                </label>
+                <button onclick="loadData()" class="btn-primary">
+                    <span class="material-icons">refresh</span>
+                    Оновити
+                </button>
+            </div>
+            <div class="quick-filters">
+                <button onclick="setDateRange(7)" class="btn-secondary">Останні 7 днів</button>
+                <button onclick="setDateRange(14)" class="btn-secondary">Останні 14 днів</button>
+                <button onclick="setDateRange(30)" class="btn-secondary">Останні 30 днів</button>
+                <button onclick="setDateRange('all')" class="btn-secondary">Весь час</button>
+            </div>
+            <button onclick="updateData()" class="btn-update">
+                <span class="material-icons">sync</span>
+                Оновити дані з Telegram
+            </button>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card card-on">
+                <div class="card-icon"><span class="material-icons">power</span></div>
+                <div class="card-content">
+                    <h3 id="onPercentage">--%</h3>
+                    <p>Є світло</p>
+                    <small id="onHours">-- годин</small>
+                </div>
+            </div>
+            <div class="card card-off">
+                <div class="card-icon"><span class="material-icons">power_off</span></div>
+                <div class="card-content">
+                    <h3 id="offPercentage">--%</h3>
+                    <p>Немає світла</p>
+                    <small id="offHours">-- годин</small>
+                </div>
+            </div>
+            <div class="card card-events">
+                <div class="card-icon"><span class="material-icons">warning</span></div>
+                <div class="card-content">
+                    <h3 id="totalEvents">--</h3>
+                    <p>Відключень</p>
+                    <small id="dateRange">--</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2><span class="material-icons">bar_chart</span> Щоденна статистика</h2>
+            <canvas id="dailyChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2><span class="material-icons">timeline</span> Часова шкала статусу</h2>
+            <div id="timelineContainer"></div>
+        </div>
+
+        <div class="chart-container">
+            <h2><span class="material-icons">pie_chart</span> Загальний розподіл</h2>
+            <div style="max-width: 400px; margin: 0 auto;">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="events-section">
+            <h2><span class="material-icons">history</span> Останні події</h2>
+            <div id="eventsList" class="events-list"></div>
+        </div>
+
+        <footer>
+            <p>Останнє оновлення: <span id="lastUpdate">--</span></p>
+        </footer>
+    </div>
+
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Завантаження даних...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
