@@ -5,7 +5,7 @@ services:
     runtime: node
     region: frankfurt  # Choose region closest to you
     plan: free
-    buildCommand: chmod +x build.sh && ./build.sh && npm ci
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /
     envVars:
@@ -31,7 +31,7 @@ services:
     region: frankfurt
     plan: free
     schedule: "0 */6 * * *"  # Every 6 hours
-    buildCommand: chmod +x build.sh && ./build.sh && npm ci
+    buildCommand: npm ci
     startCommand: npm run scrape
     envVars:
       - key: NODE_ENV
