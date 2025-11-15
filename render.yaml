@@ -1,7 +1,7 @@
 services:
   # Main web service
   - type: web
-    name: electricity-stats
+    name: electricity-rusovoi
     runtime: node
     region: frankfurt  # Choose region closest to you
     plan: free
