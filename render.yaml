@@ -25,7 +25,7 @@ services:
     name: electricity-stats-scraper
     runtime: node
     region: frankfurt
-    schedule: "0 */6 * * *"  # Every 6 hours
+    schedule: "0 */4 * * *"  # Every 6 hours
     buildCommand: npm ci
     startCommand: npm run scrape:rss
     envVars:
