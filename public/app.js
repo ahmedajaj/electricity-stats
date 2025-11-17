@@ -67,13 +67,15 @@ async function loadData() {
         // Update charts
         updateDailyChart(dailyStats);
         updateTimelineChart(stats.periods, dailyStats);
-        updatePieChart(stats);
 
         // Update events list
         updateEventsList(stats.events);
 
         // Store outages for calendar view
         allOutages = calculateOutages(stats.events);
+        
+        // Render calendar
+        renderCalendar();
 
         // Update last update time
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString('uk-UA');
@@ -432,8 +434,8 @@ function updateEventsList(events) {
         }
     }
 
-    // Show last 20 outages
-    const recentOutages = outages.slice(-20).reverse();
+    // Show all outages (most recent first)
+    const recentOutages = outages.reverse();
 
     if (recentOutages.length === 0) {
         eventsList.innerHTML = '<p style="text-align: center; color: #666;">Немає відключень за цей період</p>';
@@ -532,22 +534,6 @@ function calculateOutages(events) {
     return outages;
 }
 
-function switchView(view) {
-    currentView = view;
-    
-    // Update button states
-    document.getElementById('viewList').classList.toggle('active', view === 'list');
-    document.getElementById('viewCalendar').classList.toggle('active', view === 'calendar');
-    
-    // Toggle views
-    document.getElementById('eventsList').classList.toggle('hidden', view !== 'list');
-    document.getElementById('eventsCalendar').classList.toggle('hidden', view !== 'calendar');
-    
-    if (view === 'calendar') {
-        renderCalendar();
-    }
-}
-
 function renderCalendar() {
     const calendarContainer = document.getElementById('eventsCalendar');
     calendarContainer.innerHTML = '';
@@ -591,7 +577,44 @@ function renderCalendar() {
     const endPlusWeek = new Date(end);
     endPlusWeek.setDate(endPlusWeek.getDate() + 7);
     
+    let lastMonth = null;
+    let isFirstMonthDay = false;
+    
     while (currentDay <= endPlusWeek) {
+        // Add month header when month changes
+        const currentMonth = currentDay.getMonth();
+        const currentYear = currentDay.getFullYear();
+        const monthKey = `${currentYear}-${currentMonth}`;
+        
+        if (lastMonth !== monthKey) {
+            const monthHeader = document.createElement('div');
+            monthHeader.className = 'calendar-month-header';
+            monthHeader.style.gridColumn = '1 / -1';
+            const monthName = currentDay.toLocaleDateString('uk-UA', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            monthHeader.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            calendar.appendChild(monthHeader);
+            lastMonth = monthKey;
+            
+            // Add empty cells to align first day of month with correct weekday
+            // Only if current day is actually the 1st of the month
+            if (currentDay.getDate() === 1) {
+                const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+                let dayOfWeek = firstDayOfMonth.getDay();
+                // Convert Sunday (0) to 7, Monday becomes 1
+                dayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+                
+                // Add empty cells for days before the month starts
+                for (let i = 1; i < dayOfWeek; i++) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'calendar-day empty-placeholder';
+                    calendar.appendChild(emptyDiv);
+                }
+            }
+        }
+        
         const dayDiv = document.createElement('div');
         const isToday = currentDay.toDateString() === today.toDateString();
         const isEmpty = currentDay < start || currentDay > end;
@@ -613,10 +636,9 @@ function renderCalendar() {
             const dayEnd = new Date(currentDay);
             dayEnd.setHours(23, 59, 59, 999);
             
+            // Only show outages that START on this day
             const dayOutages = allOutages.filter(outage => {
-                return (outage.startDate >= dayStart && outage.startDate <= dayEnd) ||
-                       (outage.endDate >= dayStart && outage.endDate <= dayEnd) ||
-                       (outage.startDate <= dayStart && outage.endDate >= dayEnd);
+                return outage.startDate >= dayStart && outage.startDate <= dayEnd;
             });
             
             if (dayOutages.length > 0) {
@@ -627,7 +649,12 @@ function renderCalendar() {
                     const outageDiv = document.createElement('div');
                     outageDiv.className = `calendar-outage ${outage.isOngoing ? 'ongoing' : ''}`;
                     
-                    const timeStr = outage.startDate.toLocaleTimeString('uk-UA', {
+                    const startTimeStr = outage.startDate.toLocaleTimeString('uk-UA', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const endTimeStr = outage.endDate.toLocaleTimeString('uk-UA', {
                         hour: '2-digit',
                         minute: '2-digit'
                     });
@@ -635,7 +662,7 @@ function renderCalendar() {
                     const hours = (outage.duration / (1000 * 60 * 60)).toFixed(1);
                     
                     outageDiv.innerHTML = `
-                        <span class="calendar-outage-time">${timeStr}</span>
+                        <span class="calendar-outage-time">${startTimeStr} → ${endTimeStr}</span>
                         <span class="calendar-outage-duration">${hours} год</span>
                     `;
                     

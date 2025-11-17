@@ -510,17 +510,8 @@ button .material-icons {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.events-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
 .events-section h2 {
-    margin: 0;
+    margin-bottom: 20px;
     color: var(--text-primary);
     font-weight: 500;
     display: flex;
@@ -532,41 +523,25 @@ button .material-icons {
     color: var(--primary-color);
 }
 
-.view-toggle {
-    display: flex;
-    gap: 8px;
-    background: #f5f5f5;
-    padding: 4px;
+.calendar-section {
+    background: white;
     border-radius: 8px;
+    padding: 24px;
+    margin: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.btn-view {
+.calendar-section h2 {
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 16px;
-    border: none;
-    background: transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    color: #666;
-    transition: all 0.2s;
+    gap: 12px;
 }
 
-.btn-view:hover {
-    background: rgba(255, 255, 255, 0.8);
-    color: #333;
-}
-
-.btn-view.active {
-    background: white;
-    color: #2196F3;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.btn-view .material-icons {
-    font-size: 18px;
+.calendar-section h2 .material-icons {
+    color: var(--primary-color);
 }
 
 .events-list {
@@ -758,11 +733,16 @@ button .material-icons {
 }
 
 /* Calendar View */
+.events-calendar-wrapper {
+    overflow-x: auto;
+}
+
 .events-calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 8px;
     margin-top: 8px;
+    min-width: 700px;
 }
 
 .calendar-day {
@@ -783,6 +763,12 @@ button .material-icons {
 .calendar-day.empty {
     background: #fafafa;
     border-color: #f0f0f0;
+}
+
+.calendar-day.empty-placeholder {
+    background: transparent;
+    border: none;
+    min-height: 0;
 }
 
 .calendar-day.today {
@@ -882,6 +868,20 @@ button .material-icons {
     padding: 8px;
     background: #f5f5f5;
     border-radius: 4px;
+}
+
+.calendar-month-header {
+    grid-column: 1 / -1;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    padding: 16px 0 8px 0;
+    margin-top: 16px;
+    border-bottom: 2px solid #2196F3;
+}
+
+.calendar-month-header:first-child {
+    margin-top: 0;
 }
 
 footer {

@@ -98,29 +98,14 @@
             <div id="timelineContainer"></div>
         </div>
 
-        <div class="chart-container">
-            <h2><span class="material-icons">pie_chart</span> Загальний розподіл</h2>
-            <div style="max-width: 400px; margin: 0 auto;">
-                <canvas id="pieChart"></canvas>
-            </div>
+        <div class="events-section">
+            <h2><span class="material-icons">power_off</span> Список відключень</h2>
+            <div id="eventsList" class="events-list"></div>
         </div>
 
-        <div class="events-section">
-            <div class="events-header">
-                <h2><span class="material-icons">power_off</span> Список відключень</h2>
-                <div class="view-toggle">
-                    <button onclick="switchView('list')" id="viewList" class="btn-view active">
-                        <span class="material-icons">list</span>
-                        Список
-                    </button>
-                    <button onclick="switchView('calendar')" id="viewCalendar" class="btn-view">
-                        <span class="material-icons">calendar_month</span>
-                        Календар
-                    </button>
-                </div>
-            </div>
-            <div id="eventsList" class="events-list"></div>
-            <div id="eventsCalendar" class="events-calendar hidden"></div>
+        <div class="calendar-section">
+            <h2><span class="material-icons">calendar_month</span> Календар відключень</h2>
+            <div id="eventsCalendar" class="events-calendar-wrapper"></div>
         </div>
 
         <footer>
