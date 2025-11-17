@@ -1,5 +1,7 @@
 let dailyChart, pieChart;
 let currentStartDate, currentEndDate;
+let currentView = 'list';
+let allOutages = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +71,9 @@ async function loadData() {
 
         // Update events list
         updateEventsList(stats.events);
+
+        // Store outages for calendar view
+        allOutages = calculateOutages(stats.events);
 
         // Update last update time
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString('uk-UA');
@@ -395,39 +400,259 @@ function updateEventsList(events) {
         return;
     }
 
-    // Show last 20 events
-    const recentEvents = events.slice(-20).reverse();
+    // Create outage periods by pairing OFF events with the next ON event
+    const outages = [];
+    for (let i = 0; i < events.length; i++) {
+        if (events[i].status === 'off') {
+            const startDate = new Date(events[i].date);
+            let endDate = null;
+            let duration = null;
+            
+            // Find the next ON event
+            for (let j = i + 1; j < events.length; j++) {
+                if (events[j].status === 'on') {
+                    endDate = new Date(events[j].date);
+                    duration = endDate - startDate;
+                    break;
+                }
+            }
+            
+            // If no ON event found, outage is ongoing
+            if (!endDate) {
+                endDate = new Date(); // Current time
+                duration = endDate - startDate;
+            }
+            
+            outages.push({
+                startDate,
+                endDate,
+                duration,
+                isOngoing: !events.find((e, idx) => idx > i && e.status === 'on')
+            });
+        }
+    }
 
-    recentEvents.forEach(event => {
+    // Show last 20 outages
+    const recentOutages = outages.slice(-20).reverse();
+
+    if (recentOutages.length === 0) {
+        eventsList.innerHTML = '<p style="text-align: center; color: #666;">Немає відключень за цей період</p>';
+        return;
+    }
+
+    recentOutages.forEach(outage => {
         const eventItem = document.createElement('div');
-        eventItem.className = `event-item ${event.status}`;
+        eventItem.className = outage.isOngoing ? 'event-item ongoing' : 'event-item';
 
-        const date = new Date(event.date);
-        const formattedDate = date.toLocaleString('uk-UA', {
-            year: 'numeric',
-            month: 'short',
+        // Format dates and times
+        const startDate = outage.startDate.toLocaleDateString('uk-UA', {
             day: 'numeric',
+            month: 'short'
+        });
+        const startTime = outage.startDate.toLocaleTimeString('uk-UA', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const endDate = outage.endDate.toLocaleDateString('uk-UA', {
+            day: 'numeric',
+            month: 'short'
+        });
+        const endTime = outage.endDate.toLocaleTimeString('uk-UA', {
             hour: '2-digit',
             minute: '2-digit'
         });
 
-        const statusIcon = event.status === 'on' 
-            ? '<span class="material-icons">power</span>' 
-            : '<span class="material-icons">power_off</span>';
-        
-        const statusText = event.status === 'on' ? 'Є світло' : 'Немає світла';
+        const hours = (outage.duration / (1000 * 60 * 60)).toFixed(1);
 
         eventItem.innerHTML = `
-            <div>
-                <span class="event-status ${event.status}">
-                    ${statusIcon} ${statusText}
-                </span>
-                <div class="event-time">${formattedDate}</div>
+            <div class="event-icon ${outage.isOngoing ? 'ongoing' : ''}">
+                <span class="material-icons">power_off</span>
+                <span class="event-icon-label">Вимк</span>
+            </div>
+            <div class="event-details">
+                ${outage.isOngoing ? '<div class="event-status-label">Відключення триває</div>' : ''}
+                <div class="event-timeline">
+                    <div class="event-time-block">
+                        <div class="event-date">${startDate}</div>
+                        <div class="event-time">${startTime}</div>
+                    </div>
+                    <span class="event-arrow material-icons">arrow_forward</span>
+                    <div class="event-time-block">
+                        <div class="event-date">${endDate}</div>
+                        <div class="event-time">${endTime}</div>
+                    </div>
+                    <div class="event-icon end">
+                        <span class="material-icons">power</span>
+                        <span class="event-icon-label">Увімк</span>
+                    </div>
+                </div>
+            </div>
+            <div class="event-duration-badge ${outage.isOngoing ? 'ongoing' : ''}">
+                <div class="event-duration-value">${hours}</div>
+                <div class="event-duration-label">годин</div>
             </div>
         `;
 
         eventsList.appendChild(eventItem);
     });
+}
+
+function calculateOutages(events) {
+    const outages = [];
+    for (let i = 0; i < events.length; i++) {
+        if (events[i].status === 'off') {
+            const startDate = new Date(events[i].date);
+            let endDate = null;
+            let duration = null;
+            
+            // Find the next ON event
+            for (let j = i + 1; j < events.length; j++) {
+                if (events[j].status === 'on') {
+                    endDate = new Date(events[j].date);
+                    duration = endDate - startDate;
+                    break;
+                }
+            }
+            
+            // If no ON event found, outage is ongoing
+            if (!endDate) {
+                endDate = new Date(); // Current time
+                duration = endDate - startDate;
+            }
+            
+            outages.push({
+                startDate,
+                endDate,
+                duration,
+                isOngoing: !events.find((e, idx) => idx > i && e.status === 'on')
+            });
+        }
+    }
+    return outages;
+}
+
+function switchView(view) {
+    currentView = view;
+    
+    // Update button states
+    document.getElementById('viewList').classList.toggle('active', view === 'list');
+    document.getElementById('viewCalendar').classList.toggle('active', view === 'calendar');
+    
+    // Toggle views
+    document.getElementById('eventsList').classList.toggle('hidden', view !== 'list');
+    document.getElementById('eventsCalendar').classList.toggle('hidden', view !== 'calendar');
+    
+    if (view === 'calendar') {
+        renderCalendar();
+    }
+}
+
+function renderCalendar() {
+    const calendarContainer = document.getElementById('eventsCalendar');
+    calendarContainer.innerHTML = '';
+    
+    if (!currentStartDate || !currentEndDate) {
+        calendarContainer.innerHTML = '<p style="text-align: center; color: #666;">Виберіть діапазон дат</p>';
+        return;
+    }
+
+    const start = new Date(currentStartDate);
+    const end = new Date(currentEndDate);
+    
+    // Get first day of the week containing start date (Monday)
+    const firstDay = new Date(start);
+    const day = firstDay.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    firstDay.setDate(firstDay.getDate() + diff);
+    
+    // Week labels
+    const weekLabels = document.createElement('div');
+    weekLabels.className = 'calendar-week-labels';
+    weekLabels.innerHTML = `
+        <div class="calendar-week-label">Пн</div>
+        <div class="calendar-week-label">Вт</div>
+        <div class="calendar-week-label">Ср</div>
+        <div class="calendar-week-label">Чт</div>
+        <div class="calendar-week-label">Пт</div>
+        <div class="calendar-week-label">Сб</div>
+        <div class="calendar-week-label">Нд</div>
+    `;
+    calendarContainer.appendChild(weekLabels);
+    
+    // Calendar grid
+    const calendar = document.createElement('div');
+    calendar.className = 'events-calendar';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const currentDay = new Date(firstDay);
+    const endPlusWeek = new Date(end);
+    endPlusWeek.setDate(endPlusWeek.getDate() + 7);
+    
+    while (currentDay <= endPlusWeek) {
+        const dayDiv = document.createElement('div');
+        const isToday = currentDay.toDateString() === today.toDateString();
+        const isEmpty = currentDay < start || currentDay > end;
+        
+        dayDiv.className = `calendar-day ${isToday ? 'today' : ''} ${isEmpty ? 'empty' : ''}`;
+        
+        // Day header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'calendar-day-header';
+        dayHeader.innerHTML = `
+            <div class="calendar-day-number">${currentDay.getDate()}</div>
+        `;
+        dayDiv.appendChild(dayHeader);
+        
+        if (!isEmpty) {
+            // Find outages for this day
+            const dayStart = new Date(currentDay);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(currentDay);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            const dayOutages = allOutages.filter(outage => {
+                return (outage.startDate >= dayStart && outage.startDate <= dayEnd) ||
+                       (outage.endDate >= dayStart && outage.endDate <= dayEnd) ||
+                       (outage.startDate <= dayStart && outage.endDate >= dayEnd);
+            });
+            
+            if (dayOutages.length > 0) {
+                const outagesContainer = document.createElement('div');
+                outagesContainer.className = 'calendar-outages';
+                
+                dayOutages.forEach(outage => {
+                    const outageDiv = document.createElement('div');
+                    outageDiv.className = `calendar-outage ${outage.isOngoing ? 'ongoing' : ''}`;
+                    
+                    const timeStr = outage.startDate.toLocaleTimeString('uk-UA', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const hours = (outage.duration / (1000 * 60 * 60)).toFixed(1);
+                    
+                    outageDiv.innerHTML = `
+                        <span class="calendar-outage-time">${timeStr}</span>
+                        <span class="calendar-outage-duration">${hours} год</span>
+                    `;
+                    
+                    outageDiv.title = `${outage.startDate.toLocaleString('uk-UA')} → ${outage.endDate.toLocaleString('uk-UA')}`;
+                    
+                    outagesContainer.appendChild(outageDiv);
+                });
+                
+                dayDiv.appendChild(outagesContainer);
+            }
+        }
+        
+        calendar.appendChild(dayDiv);
+        currentDay.setDate(currentDay.getDate() + 1);
+    }
+    
+    calendarContainer.appendChild(calendar);
 }
 
 async function updateData() {
