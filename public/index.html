@@ -35,30 +35,28 @@
         </header>
 
         <div class="controls">
-            <div class="date-range">
-                <label>
-                    Початкова дата:
-                    <input type="date" id="startDate">
-                </label>
-                <label>
-                    Кінцева дата:
-                    <input type="date" id="endDate">
-                </label>
-                <button onclick="loadData()" class="btn-primary">
-                    <span class="material-icons">refresh</span>
-                    Оновити
-                </button>
+            <div class="date-picker-section">
+                <div class="date-inputs">
+                    <div class="date-input-group">
+                        <label>Початкова дата:</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="date-input-group">
+                        <label>Кінцева дата:</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button onclick="loadData()" class="btn-primary">
+                        <span class="material-icons">refresh</span>
+                        Оновити
+                    </button>
+                </div>
+                <div class="quick-filters">
+                    <button onclick="setDateRange(7)" class="btn-filter">Останні 7 днів</button>
+                    <button onclick="setDateRange(14)" class="btn-filter">Останні 14 днів</button>
+                    <button onclick="setDateRange(30)" class="btn-filter">Останні 30 днів</button>
+                    <button onclick="setDateRange('all')" class="btn-filter">Весь час</button>
+                </div>
             </div>
-            <div class="quick-filters">
-                <button onclick="setDateRange(7)" class="btn-secondary">Останні 7 днів</button>
-                <button onclick="setDateRange(14)" class="btn-secondary">Останні 14 днів</button>
-                <button onclick="setDateRange(30)" class="btn-secondary">Останні 30 днів</button>
-                <button onclick="setDateRange('all')" class="btn-secondary">Весь час</button>
-            </div>
-            <button onclick="updateData()" class="btn-update">
-                <span class="material-icons">sync</span>
-                Оновити дані з Telegram
-            </button>
         </div>
 
         <div class="summary-cards">
