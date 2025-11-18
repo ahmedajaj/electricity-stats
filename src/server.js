@@ -3,7 +3,7 @@ const path = require('path');
 const dataStore = require('./dataStore');
 const { exec } = require('child_process');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

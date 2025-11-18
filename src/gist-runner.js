@@ -9,7 +9,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const GistUploader = require('./gist-uploader');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
 
 const dataFile = path.join(__dirname, '../data', 'events.json');
 const logFile = path.join(__dirname, '../data', 'gist-cron.log');

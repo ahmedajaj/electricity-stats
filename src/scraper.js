@@ -4,7 +4,7 @@ const input = require('input');
 const fs = require('fs');
 const path = require('path');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
@@ -13,7 +13,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 // Load or create session
 let sessionString = '';
-const sessionFile = path.join(__dirname, 'session.json');
+const sessionFile = path.join(__dirname, '../data/session.json');
 if (fs.existsSync(sessionFile)) {
     const sessionData = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
     sessionString = sessionData.session || '';

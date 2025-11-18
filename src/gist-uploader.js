@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
 
 const githubToken = process.env.GITHUB_TOKEN;
 const gistId = process.env.GIST_ID;
