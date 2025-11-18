@@ -8,9 +8,7 @@
     "prod": "NODE_ENV=production node src/server.js",
     "scrape": "node src/scraper.js",
     "gist:upload": "node src/gist-uploader.js",
-    "gist:run": "node src/gist-runner.js",
-    "check": "node src/check-config.js",
-    "build": "chmod +x build.sh && ./build.sh"
+    "gist:run": "node src/gist-runner.js"
   },
   "keywords": [
     "telegram",
