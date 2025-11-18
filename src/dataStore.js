@@ -1,19 +1,21 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const DATA_DIR = path.join(__dirname, '../data');
 const DATA_FILE = path.join(DATA_DIR, 'events.json');
+const GIST_URL = 'https://gist.githubusercontent.com/ahmedajaj/f73208e345aee68d11c31c4d1f8c32f7/raw/events.json';
 
-// Ensure data directory and file exist
+// Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, '[]', 'utf8');
 }
 
 class DataStore {
     constructor() {
+        this.cache = null;
+        this.cacheTime = 0;
+        this.cacheDuration = 5 * 60 * 1000; // Cache for 5 minutes
         this.ensureDataDir();
     }
 
@@ -22,34 +24,75 @@ class DataStore {
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir);
         }
-        if (!fs.existsSync(DATA_FILE)) {
-            fs.writeFileSync(DATA_FILE, JSON.stringify([]));
-        }
     }
 
-    getEvents() {
+    async fetchFromGist() {
+        return new Promise((resolve, reject) => {
+            https.get(GIST_URL, (res) => {
+                let data = '';
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => {
+                    try {
+                        const events = JSON.parse(data);
+                        // Cache the data locally as backup
+                        fs.writeFileSync(DATA_FILE, JSON.stringify(events, null, 2));
+                        resolve(events);
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }).on('error', reject);
+        });
+    }
+
+    async getEvents() {
+        // Check if cache is still valid
+        const now = Date.now();
+        if (this.cache && (now - this.cacheTime) < this.cacheDuration) {
+            return this.cache;
+        }
+
         try {
-            const data = fs.readFileSync(DATA_FILE, 'utf8');
-            return JSON.parse(data);
+            // Try to fetch from Gist
+            const events = await this.fetchFromGist();
+            this.cache = events;
+            this.cacheTime = now;
+            return events;
         } catch (error) {
+            console.error('Failed to fetch from Gist, using local cache:', error.message);
+            
+            // Fallback to local file if it exists
+            if (fs.existsSync(DATA_FILE)) {
+                try {
+                    const data = fs.readFileSync(DATA_FILE, 'utf8');
+                    const events = JSON.parse(data);
+                    this.cache = events;
+                    this.cacheTime = now;
+                    return events;
+                } catch (readError) {
+                    console.error('Failed to read local cache:', readError.message);
+                }
+            }
+            
             return [];
         }
     }
 
-    calculateStatistics(startDate, endDate) {
-        const allEvents = this.getEvents();
+    async calculateStatistics(startDate, endDate) {
+        const allEvents = await this.getEvents();
         const startTimestamp = new Date(startDate + 'T00:00:00+02:00').getTime();
         // Set end date to end of day (23:59:59.999) in Kyiv time
         const endTimestamp = new Date(endDate + 'T23:59:59.999+02:00').getTime();
         
         const events = allEvents.filter(event => {
-            return event.timestamp >= startTimestamp && event.timestamp <= endTimestamp;
+            const eventTimestamp = new Date(event.date).getTime();
+            return eventTimestamp >= startTimestamp && eventTimestamp <= endTimestamp;
         });
 
         // Find the last event BEFORE the start date to know the initial status
         const previousEvent = allEvents
-            .filter(e => e.timestamp < startTimestamp)
-            .sort((a, b) => b.timestamp - a.timestamp)[0];
+            .filter(e => new Date(e.date).getTime() < startTimestamp)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
         // If no events in range and no previous event, nothing to calculate
         if (events.length === 0 && !previousEvent) {
@@ -101,8 +144,8 @@ class DataStore {
         }
 
         // If there's a gap before the first event in range, fill it with previous status
-        if (previousEvent && events[0].timestamp > startTimestamp) {
-            const gapDuration = events[0].timestamp - startTimestamp;
+        if (previousEvent && new Date(events[0].date).getTime() > startTimestamp) {
+            const gapDuration = new Date(events[0].date).getTime() - startTimestamp;
             periods.push({
                 start: new Date(startTimestamp).toISOString(),
                 end: events[0].date,
@@ -121,7 +164,7 @@ class DataStore {
         for (let i = 0; i < events.length - 1; i++) {
             const currentEvent = events[i];
             const nextEvent = events[i + 1];
-            const duration = nextEvent.timestamp - currentEvent.timestamp;
+            const duration = new Date(nextEvent.date).getTime() - new Date(currentEvent.date).getTime();
 
             periods.push({
                 start: currentEvent.date,
@@ -141,7 +184,7 @@ class DataStore {
         const lastEvent = events[events.length - 1];
         const now = new Date().getTime();
         const actualEnd = Math.min(now, endTimestamp);
-        const lastDuration = actualEnd - lastEvent.timestamp;
+        const lastDuration = actualEnd - new Date(lastEvent.date).getTime();
         
         if (lastDuration > 0) {
             periods.push({
@@ -171,14 +214,15 @@ class DataStore {
         };
     }
 
-    getDailyStatistics(startDate, endDate) {
-        const allEvents = this.getEvents();
+    async getDailyStatistics(startDate, endDate) {
+        const allEvents = await this.getEvents();
         const startTimestamp = new Date(startDate + 'T00:00:00+02:00').getTime();
         // Set end date to end of day (23:59:59.999) in Kyiv time
         const endTimestamp = new Date(endDate + 'T23:59:59.999+02:00').getTime();
         
         const events = allEvents.filter(event => {
-            return event.timestamp >= startTimestamp && event.timestamp <= endTimestamp;
+            const eventTimestamp = new Date(event.date).getTime();
+            return eventTimestamp >= startTimestamp && eventTimestamp <= endTimestamp;
         });
         
         const dailyStats = {};
@@ -195,14 +239,14 @@ class DataStore {
                 offTime: 0,
                 events: []
             };
-        }
+        };
         
         // Find the last event BEFORE the start date to know the initial status
         const previousEvent = allEvents
-            .filter(e => e.timestamp < startTimestamp)
-            .sort((a, b) => b.timestamp - a.timestamp)[0];
+            .filter(e => new Date(e.date).getTime() < startTimestamp)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-        // If no events in range and no previous event, return empty stats
+        // If no events in range and no previous event, nothing to calculate
         if (events.length === 0 && !previousEvent) {
             return Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date));
         }
@@ -228,11 +272,11 @@ class DataStore {
         }
 
         // If there's a gap before the first event, fill it with previous status
-        if (previousEvent && events[0].timestamp > startTimestamp) {
+        if (previousEvent && new Date(events[0].date).getTime() > startTimestamp) {
             this.distributeDuration(
                 dailyStats,
                 startTimestamp,
-                events[0].timestamp,
+                new Date(events[0].date).getTime(),
                 previousEvent.status
             );
         }
@@ -242,7 +286,8 @@ class DataStore {
             const currentEvent = events[i];
             const nextEvent = events[i + 1];
             
-            const eventDate = new Date(currentEvent.timestamp);
+            const eventTimestamp = new Date(currentEvent.date).getTime();
+            const eventDate = new Date(eventTimestamp);
             const dateKey = eventDate.toISOString().split('T')[0];
             
             if (dailyStats[dateKey]) {
@@ -251,12 +296,12 @@ class DataStore {
 
             if (nextEvent) {
                 // Distribute duration from current event to next event
-                this.distributeDuration(dailyStats, currentEvent.timestamp, nextEvent.timestamp, currentEvent.status);
+                this.distributeDuration(dailyStats, new Date(currentEvent.date).getTime(), new Date(nextEvent.date).getTime(), currentEvent.status);
             } else {
                 // Last event to now (but not beyond current time)
                 const now = new Date().getTime();
                 const actualEnd = Math.min(now, endTimestamp);
-                this.distributeDuration(dailyStats, currentEvent.timestamp, actualEnd, currentEvent.status);
+                this.distributeDuration(dailyStats, new Date(currentEvent.date).getTime(), actualEnd, currentEvent.status);
             }
         }
 

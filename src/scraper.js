@@ -85,11 +85,8 @@ async function scrapeChannel() {
 
                     if (status) {
                         messages.push({
-                            id: message.id,
                             date: new Date(message.date * 1000).toISOString(),
-                            timestamp: message.date * 1000,
-                            status: status,
-                            text: message.message
+                            status: status
                         });
                         totalMessages++;
                     }
@@ -107,8 +104,8 @@ async function scrapeChannel() {
             }
         }
 
-        // Sort messages by timestamp (oldest first)
-        messages.sort((a, b) => a.timestamp - b.timestamp);
+        // Sort messages by date (oldest first)
+        messages.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         // Save to data file
         const dataDir = path.join(__dirname, '../data');
@@ -124,11 +121,11 @@ async function scrapeChannel() {
             existingEvents = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
         }
 
-        // Merge new messages with existing, avoiding duplicates
-        const existingIds = new Set(existingEvents.map(e => e.id));
-        const newEvents = messages.filter(m => !existingIds.has(m.id));
+        // Merge new messages with existing, avoiding duplicates by date
+        const existingDates = new Set(existingEvents.map(e => e.date));
+        const newEvents = messages.filter(m => !existingDates.has(m.date));
         
-        const allEvents = [...existingEvents, ...newEvents].sort((a, b) => a.timestamp - b.timestamp);
+        const allEvents = [...existingEvents, ...newEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
 
         fs.writeFileSync(dataFile, JSON.stringify(allEvents, null, 2));
 

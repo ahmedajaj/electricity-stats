@@ -13,22 +13,34 @@ Track electricity status for **Київ, Софії Русової 7А** with re
 npm install
 ```
 
-### 2. Configure Telegram API
-Get your credentials from https://my.telegram.org/apps
+### 2. Configure Telegram Bot
+**Option A: Bot Token (Recommended - No Auth Required!)**
+1. Message [@BotFather](https://t.me/BotFather) on Telegram
+2. Create a bot with `/newbot`
+3. Copy the token and add to `.env`:
 
 ```bash
 cp .env.example .env
 # Edit .env and add:
-# TELEGRAM_API_ID=your_api_id
-# TELEGRAM_API_HASH=your_api_hash
-# TELEGRAM_PHONE=+380123456789
+TELEGRAM_API_ID=your_api_id
+TELEGRAM_API_HASH=your_api_hash
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+```
+
+**Option B: User Client (Requires Phone Auth)**
+```bash
+# If you prefer user client instead of bot
+TELEGRAM_PHONE=+380123456789
 ```
 
 ### 3. Collect Data
 ```bash
+# With bot (no auth needed!)
+npm run bot:start
+
+# OR with user client (requires verification code)
 npm run scrape
 ```
-*First run requires Telegram verification code*
 
 ### 4. Start Server
 ```bash
@@ -113,11 +125,18 @@ electricity-stats/
 ## 🔌 Available Commands
 
 ```bash
+# Server
 npm start              # Start server (development)
 npm run prod          # Start server (production mode)
-npm run scrape        # Update data from Telegram
-npm run scheduler     # Start auto-updater (every 6 hours)
 npm run dev           # Start with nodemon (auto-restart)
+
+# Data Collection
+npm run bot:start     # Start bot collector (no auth needed!)
+npm run bot:collect   # Bot in production mode
+npm run scrape        # Update with user client (requires auth)
+
+# Automation
+npm run scheduler     # Start bot collector with auto-restart
 npm run check         # Validate configuration
 ```
 

@@ -14,9 +14,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 
 // Get all events
-app.get('/api/events', (req, res) => {
+app.get('/api/events', async (req, res) => {
     try {
-        const events = dataStore.getEvents();
+        const events = await dataStore.getEvents();
         res.json(events);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -40,7 +40,7 @@ app.get('/api/events/range', (req, res) => {
 });
 
 // Get statistics for date range
-app.get('/api/statistics', (req, res) => {
+app.get('/api/statistics', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         
@@ -48,7 +48,7 @@ app.get('/api/statistics', (req, res) => {
             return res.status(400).json({ error: 'startDate and endDate are required' });
         }
 
-        const stats = dataStore.calculateStatistics(startDate, endDate);
+        const stats = await dataStore.calculateStatistics(startDate, endDate);
         res.json(stats);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -56,7 +56,7 @@ app.get('/api/statistics', (req, res) => {
 });
 
 // Get daily statistics
-app.get('/api/statistics/daily', (req, res) => {
+app.get('/api/statistics/daily', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         
@@ -64,7 +64,7 @@ app.get('/api/statistics/daily', (req, res) => {
             return res.status(400).json({ error: 'startDate and endDate are required' });
         }
 
-        const dailyStats = dataStore.getDailyStatistics(startDate, endDate);
+        const dailyStats = await dataStore.getDailyStatistics(startDate, endDate);
         res.json(dailyStats);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -82,9 +82,9 @@ app.post('/api/update', (req, res) => {
 });
 
 // Get summary statistics
-app.get('/api/summary', (req, res) => {
+app.get('/api/summary', async (req, res) => {
     try {
-        const events = dataStore.getEvents();
+        const events = await dataStore.getEvents();
         
         if (events.length === 0) {
             return res.json({
@@ -103,12 +103,12 @@ app.get('/api/summary', (req, res) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 7);
 
-        const weekStats = dataStore.calculateStatistics(startDate.toISOString(), endDate.toISOString());
+        const weekStats = await dataStore.calculateStatistics(startDate.toISOString(), endDate.toISOString());
 
         // Get statistics for last 30 days
         const monthStart = new Date();
         monthStart.setDate(monthStart.getDate() - 30);
-        const monthStats = dataStore.calculateStatistics(monthStart.toISOString(), endDate.toISOString());
+        const monthStats = await dataStore.calculateStatistics(monthStart.toISOString(), endDate.toISOString());
 
         res.json({
             totalEvents: events.length,
