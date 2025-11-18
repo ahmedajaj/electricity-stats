@@ -2,7 +2,7 @@ node_modules/
 .env
 session.json
 *.log
-data/*
+data/
 .DS_Store
 .playwright-mcp/
 *.swp
