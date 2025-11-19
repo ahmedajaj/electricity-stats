@@ -99,4 +99,14 @@ npm run gist:run     # Run scraper + upload (used by cron)
 
 ---
 
-**Made with ⚡ for tracking electricity statistics**
+## 🔌 VM installation steps
+
+```bash
+apt update -y
+apt upgrade -y
+apt install git nodejs npm -y
+git clone https://github.com/ahmedajaj/electricity-stats.git
+npm i
+npm install pm2@latest -g
+pm2 start ecosystem.config.js
+```

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
+require('dotenv').config({ path: path.join(__dirname, '../data/.env'), silent: true });
 
 const githubToken = process.env.GITHUB_TOKEN;
 const gistId = process.env.GIST_ID;
@@ -62,11 +62,6 @@ class GistUploader {
         const currentHash = this.getFileHash(filePath);
         const lastHash = this.getLastUploadHash();
         
-        if (isDev) {
-            console.log('Current hash:', currentHash);
-            console.log('Last hash:', lastHash);
-        }
-        
         return currentHash !== lastHash;
     }
 
@@ -83,7 +78,6 @@ class GistUploader {
 
         // Check if file has changed
         if (!this.hasChanged(filePath)) {
-            if (isDev) console.log('No changes detected, skipping upload');
             return { changed: false, gistUrl: null };
         }
 
@@ -95,8 +89,6 @@ class GistUploader {
 
             if (this.gistId) {
                 // Update existing gist
-                if (isDev) console.log(`Updating existing Gist: ${this.gistId}...`);
-                
                 const response = await this.octokit.gists.update({
                     gist_id: this.gistId,
                     description: description,
@@ -108,11 +100,8 @@ class GistUploader {
                 });
 
                 gistUrl = response.data.html_url;
-                if (isDev) console.log(`✓ Gist updated: ${gistUrl}`);
             } else {
                 // Create new gist
-                if (isDev) console.log('Creating new Gist...');
-                
                 const response = await this.octokit.gists.create({
                     description: description,
                     public: true,

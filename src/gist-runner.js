@@ -9,14 +9,16 @@ const { exec } = require('child_process');
 const path = require('path');
 const GistUploader = require('./gist-uploader');
 
-require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
+require('dotenv').config({ path: path.join(__dirname, '../data/.env'), silent: true });
 
 const dataFile = path.join(__dirname, '../data', 'events.json');
 const logFile = path.join(__dirname, '../data', 'gist-cron.log');
 const fs = require('fs');
 
-function log(message) {
-    const timestamp = new Date().toLocaleString('uk-UA', { 
+let startTime;
+
+function getTimestamp() {
+    return new Date().toLocaleString('uk-UA', { 
         timeZone: 'Europe/Kiev',
         year: 'numeric',
         month: '2-digit',
@@ -25,34 +27,40 @@ function log(message) {
         minute: '2-digit',
         second: '2-digit'
     });
-    const logMessage = `[${timestamp}] ${message}\n`;
-    
-    // Log to console
-    console.log(logMessage.trim());
+}
+
+function log(message, includeTimestamp = false) {
+    const prefix = includeTimestamp ? `[${getTimestamp()}] ` : '';
+    const logMessage = `${prefix}${message}\n`;
     
     // Append to log file
     fs.appendFileSync(logFile, logMessage);
 }
 
 async function run() {
-    log('Starting scrape and Gist upload...');
+    startTime = Date.now();
+    
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     try {
         // Initialize uploader
         const uploader = new GistUploader();
         await uploader.initialize();
         
-        // Run the scraper
+        // Run the scraper (suppress verbose output)
         await new Promise((resolve, reject) => {
-            exec('node src/scraper.js', (error, stdout, stderr) => {
+            exec('DOTENV_CONFIG_SILENT=true /opt/homebrew/bin/node src/scraper.js 2>&1 | grep -E "^(✓|❌)"', { shell: '/bin/bash' }, (error, stdout, stderr) => {
                 if (error) {
-                    log(`Scraper error: ${error.message}`);
+                    log(`❌ Scraper error: ${error.message}`);
                     reject(error);
                     return;
                 }
                 
-                if (stdout) {
-                    log(`Scraper: ${stdout.trim()}`);
+                // Only log the summary line (✓ Scraped...)
+                const lines = stdout.trim().split('\n');
+                const summaryLine = lines.find(line => line.includes('✓ Scraped'));
+                if (summaryLine) {
+                    log(summaryLine.trim());
                 }
                 
                 resolve();
@@ -64,22 +72,26 @@ async function run() {
         
         if (result.changed) {
             const stats = uploader.getStats(dataFile);
-            log(`✓ Changes uploaded to Gist`);
-            log(`  URL: ${result.gistUrl}`);
-            log(`  Stats: ${stats.total} events (${stats.on} on, ${stats.off} off)`);
+            log('✅ Uploaded to Gist');
             
             if (stats.lastEvent) {
-                log(`  Last: ${stats.lastEvent.status.toUpperCase()} at ${stats.lastEvent.date}`);
+                const statusIcon = stats.lastEvent.status === 'on' ? '💡' : '🔌';
+                log(`   ${statusIcon} ${stats.lastEvent.status.toUpperCase()} at ${new Date(stats.lastEvent.date).toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' })}`);
             }
         } else {
-            log('ℹ No changes detected, Gist not updated');
+            log('ℹ️  No changes');
         }
         
-        log('✓ Completed successfully\n');
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        log(`⏱️  ${duration}s | End: ${getTimestamp()}`);
+        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         process.exit(0);
         
     } catch (error) {
-        log(`❌ Error: ${error.message}`);
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        log(`❌ ${error.message}`);
+        log(`⏱️  ${duration}s | End: ${getTimestamp()}`);
+        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         process.exit(1);
     }
 }

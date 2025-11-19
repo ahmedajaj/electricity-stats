@@ -4,7 +4,7 @@ const input = require('input');
 const fs = require('fs');
 const path = require('path');
 
-require('dotenv').config({ path: path.join(__dirname, '../data/.env') });
+require('dotenv').config({ path: path.join(__dirname, '../data/.env'), silent: true });
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
