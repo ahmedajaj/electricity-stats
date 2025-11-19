@@ -93,12 +93,20 @@ function updateSummaryCards(stats) {
     
     // Count only OFF events (outages)
     const outages = stats.events.filter(e => e.status === 'off').length;
+    
+    // Calculate average outage duration per day
+    const startDate = new Date(currentStartDate);
+    const endDate = new Date(currentEndDate);
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const averageOutageDuration = parseFloat(offHours) / daysDiff;
 
     document.getElementById('onPercentage').textContent = stats.percentageOn.toFixed(1) + '%';
     document.getElementById('offPercentage').textContent = stats.percentageOff.toFixed(1) + '%';
     document.getElementById('onHours').textContent = `${onHours} год`;
     document.getElementById('offHours').textContent = `${offHours} год`;
     document.getElementById('totalEvents').textContent = outages;
+    document.getElementById('averageOutage').textContent = averageOutageDuration.toFixed(1) + ' год';
+    document.getElementById('averageOutageLabel').textContent = 'на день';
     
     const start = new Date(currentStartDate).toLocaleDateString('uk-UA');
     const end = new Date(currentEndDate).toLocaleDateString('uk-UA');
@@ -110,6 +118,24 @@ function updateDailyChart(dailyStats) {
 
     if (dailyChart) {
         dailyChart.destroy();
+    }
+    
+    // Make chart scrollable if more than 10 days
+    const chartCanvas = document.getElementById('dailyChart');
+    const chartWrapper = chartCanvas.parentElement;
+    
+    if (dailyStats.length > 10) {
+        // Calculate width based on number of days (100px per day for better spacing)
+        const chartWidth = dailyStats.length * 100;
+        chartCanvas.style.width = chartWidth + 'px';
+        chartCanvas.style.height = '400px';
+        chartCanvas.width = chartWidth;
+        chartCanvas.height = 400;
+        chartWrapper.style.overflowX = 'auto';
+    } else {
+        chartCanvas.style.width = '';
+        chartCanvas.style.height = '';
+        chartWrapper.style.overflowX = '';
     }
 
     const labels = dailyStats.map(day => {
@@ -142,8 +168,14 @@ function updateDailyChart(dailyStats) {
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: dailyStats.length <= 10,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    left: dailyStats.length > 10 ? 60 : 10,
+                    right: 10
+                }
+            },
             scales: {
                 x: {
                     stacked: true,
@@ -166,8 +198,7 @@ function updateDailyChart(dailyStats) {
             },
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top'
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -190,7 +221,12 @@ function updateDailyChart(dailyStats) {
                         const meta = chart.getDatasetMeta(datasetIndex);
                         meta.data.forEach((bar, index) => {
                             const offHours = parseFloat(offData[index]);
-                            if (offHours > 0.5) { // Only show if more than 0.5 hours
+                            const barHeight = bar.height;
+                            
+                            // Only show label if:
+                            // 1. More than 0.5 hours outage
+                            // 2. Bar height is tall enough (at least 25 pixels) to fit the text
+                            if (offHours > 0.5 && barHeight >= 25) {
                                 ctx.save();
                                 ctx.font = 'bold 11px Arial';
                                 ctx.fillStyle = '#fff';
@@ -208,6 +244,30 @@ function updateDailyChart(dailyStats) {
             }
         }]
     });
+}
+
+function toggleChartView(view) {
+    if (!dailyChart) return;
+    
+    // Update button states
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.closest('.view-toggle-btn').classList.add('active');
+    
+    // Show/hide datasets
+    const onDatasetMeta = dailyChart.getDatasetMeta(0);
+    const offDatasetMeta = dailyChart.getDatasetMeta(1);
+    
+    if (view === 'both') {
+        onDatasetMeta.hidden = false;
+        offDatasetMeta.hidden = false;
+    } else if (view === 'outages') {
+        onDatasetMeta.hidden = true;
+        offDatasetMeta.hidden = false;
+    }
+    
+    dailyChart.update();
 }
 
 function updateTimelineChart(periods, dailyStats) {
@@ -636,9 +696,9 @@ function renderCalendar() {
             const dayEnd = new Date(currentDay);
             dayEnd.setHours(23, 59, 59, 999);
             
-            // Only show outages that START on this day
+            // Show outages that overlap with this day (either start or are ongoing)
             const dayOutages = allOutages.filter(outage => {
-                return outage.startDate >= dayStart && outage.startDate <= dayEnd;
+                return outage.startDate <= dayEnd && outage.endDate >= dayStart;
             });
             
             if (dayOutages.length > 0) {

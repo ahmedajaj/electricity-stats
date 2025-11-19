@@ -1,11 +1,12 @@
 node_modules/
+.playwright-mcp/
+data/
+logs/
+.github/
 .env
 session.json
 *.log
-data/
 .DS_Store
-.playwright-mcp/
 *.swp
 *.swo
 *~
-logs/

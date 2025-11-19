@@ -84,16 +84,33 @@
                     <small id="dateRange">--</small>
                 </div>
             </div>
+            <div class="card card-average">
+                <div class="card-icon"><span class="material-icons">schedule</span></div>
+                <div class="card-content">
+                    <h3 id="averageOutage">--</h3>
+                    <p>Середня тривалість</p>
+                    <small id="averageOutageLabel">відключення</small>
+                </div>
+            </div>
         </div>
 
         <div class="chart-container">
-            <h2><span class="material-icons">bar_chart</span> Щоденна статистика</h2>
-            <canvas id="dailyChart"></canvas>
-        </div>
-
-        <div class="chart-container">
-            <h2><span class="material-icons">timeline</span> Часова шкала статусу</h2>
-            <div id="timelineContainer"></div>
+            <div class="chart-header">
+                <h2><span class="material-icons">bar_chart</span> Щоденна статистика</h2>
+                <div class="chart-view-toggle">
+                    <button class="view-toggle-btn active" onclick="toggleChartView('both')">
+                        <span class="material-icons">bar_chart</span>
+                        Все
+                    </button>
+                    <button class="view-toggle-btn" onclick="toggleChartView('outages')">
+                        <span class="material-icons">power_off</span>
+                        Тільки відключення
+                    </button>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="dailyChart"></canvas>
+            </div>
         </div>
 
         <div class="events-section">
@@ -104,6 +121,11 @@
         <div class="calendar-section">
             <h2><span class="material-icons">calendar_month</span> Календар відключень</h2>
             <div id="eventsCalendar" class="events-calendar-wrapper"></div>
+        </div>
+
+        <div class="chart-container">
+            <h2><span class="material-icons">timeline</span> Часова шкала статусу</h2>
+            <div id="timelineContainer"></div>
         </div>
 
         <footer>
