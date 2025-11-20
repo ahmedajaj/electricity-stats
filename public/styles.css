@@ -1195,6 +1195,16 @@ footer {
     
     .date-input-group {
         min-width: 100%;
+        width: 100%;
+    }
+    
+    .date-input-group input {
+        width: 100%;
+    }
+    
+    .btn-primary {
+        width: 100%;
+        justify-content: center;
     }
     
     .quick-filters {

@@ -3,6 +3,21 @@ let currentStartDate, currentEndDate;
 let currentView = 'list';
 let allOutages = [];
 
+// Helper function to format duration in H:MM format
+function formatDuration(hours) {
+    const totalMinutes = Math.round(hours * 60);
+    
+    if (totalMinutes < 60) {
+        return `${totalMinutes} хв`;
+    }
+    
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const mm = m.toString().padStart(2, '0');
+    
+    return `${h}:${mm} г`;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setDateRange(7); // Default to last 7 days
@@ -88,8 +103,8 @@ async function loadData() {
 }
 
 function updateSummaryCards(stats) {
-    const onHours = (stats.totalOnTime / (1000 * 60 * 60)).toFixed(1);
-    const offHours = (stats.totalOffTime / (1000 * 60 * 60)).toFixed(1);
+    const onHours = stats.totalOnTime / (1000 * 60 * 60);
+    const offHours = stats.totalOffTime / (1000 * 60 * 60);
     
     // Count only OFF events (outages)
     const outages = stats.events.filter(e => e.status === 'off').length;
@@ -98,14 +113,14 @@ function updateSummaryCards(stats) {
     const startDate = new Date(currentStartDate);
     const endDate = new Date(currentEndDate);
     const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-    const averageOutageDuration = parseFloat(offHours) / daysDiff;
+    const averageOutageDuration = offHours / daysDiff;
 
     document.getElementById('onPercentage').textContent = stats.percentageOn.toFixed(1) + '%';
     document.getElementById('offPercentage').textContent = stats.percentageOff.toFixed(1) + '%';
-    document.getElementById('onHours').textContent = `${onHours} год`;
-    document.getElementById('offHours').textContent = `${offHours} год`;
+    document.getElementById('onHours').textContent = formatDuration(onHours);
+    document.getElementById('offHours').textContent = formatDuration(offHours);
     document.getElementById('totalEvents').textContent = outages;
-    document.getElementById('averageOutage').textContent = averageOutageDuration.toFixed(1) + ' год';
+    document.getElementById('averageOutage').textContent = formatDuration(averageOutageDuration);
     document.getElementById('averageOutageLabel').textContent = 'на день';
     
     const start = new Date(currentStartDate).toLocaleDateString('uk-UA');
@@ -202,6 +217,11 @@ function updateDailyChart(dailyStats) {
                 },
                 tooltip: {
                     callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y || 0;
+                            return `${label}: ${formatDuration(value)}`;
+                        },
                         footer: (items) => {
                             const index = items[0].dataIndex;
                             const day = dailyStats[index];
@@ -232,7 +252,22 @@ function updateDailyChart(dailyStats) {
                                 ctx.fillStyle = '#fff';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                const label = `${offHours.toFixed(1)}г`;
+                                
+                                // Format as H:MM г (like 7:35 г)
+                                const totalMinutes = Math.round(offHours * 60);
+                                let label;
+                                
+                                if (totalMinutes < 60) {
+                                    // Less than 1 hour: show just minutes
+                                    label = `${totalMinutes}хв`;
+                                } else {
+                                    const h = Math.floor(totalMinutes / 60);
+                                    const m = totalMinutes % 60;
+                                    // Format minutes with leading zero if needed
+                                    const mm = m.toString().padStart(2, '0');
+                                    label = `${h}:${mm} г`;
+                                }
+                                
                                 const x = bar.x;
                                 const y = bar.y + (bar.height / 2);
                                 ctx.fillText(label, x, y);
@@ -365,7 +400,8 @@ function updateTimelineChart(periods, dailyStats) {
                 timeZone: 'Europe/Kiev',
                 hour12: false
             });
-            const hours = (duration / (1000 * 60 * 60)).toFixed(1);
+            const hours = duration / (1000 * 60 * 60);
+            const durationText = formatDuration(hours);
             
             // Create tooltip element
             const tooltip = document.createElement('div');
@@ -373,9 +409,9 @@ function updateTimelineChart(periods, dailyStats) {
             
             // Different tooltip for on/off periods
             if (period.status === 'off') {
-                tooltip.textContent = `Відключення з ${startTimeStr} до ${endTimeStr} (${hours} год)`;
+                tooltip.textContent = `Відключення з ${startTimeStr} до ${endTimeStr} (${durationText})`;
             } else {
-                tooltip.textContent = `Є світло ${startTimeStr} - ${endTimeStr} (${hours} год)`;
+                tooltip.textContent = `Є світло ${startTimeStr} - ${endTimeStr} (${durationText})`;
             }
             
             segment.appendChild(tooltip);
@@ -525,7 +561,20 @@ function updateEventsList(events) {
             minute: '2-digit'
         });
 
-        const hours = (outage.duration / (1000 * 60 * 60)).toFixed(1);
+        const hours = outage.duration / (1000 * 60 * 60);
+        const totalMinutes = Math.round(hours * 60);
+        
+        let durationValue, durationLabel;
+        if (totalMinutes < 60) {
+            durationValue = totalMinutes;
+            durationLabel = 'хвилин';
+        } else {
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            const mm = m.toString().padStart(2, '0');
+            durationValue = `${h}:${mm}`;
+            durationLabel = 'годин';
+        }
 
         eventItem.innerHTML = `
             <div class="event-icon ${outage.isOngoing ? 'ongoing' : ''}">
@@ -551,8 +600,8 @@ function updateEventsList(events) {
                 </div>
             </div>
             <div class="event-duration-badge ${outage.isOngoing ? 'ongoing' : ''}">
-                <div class="event-duration-value">${hours}</div>
-                <div class="event-duration-label">годин</div>
+                <div class="event-duration-value">${durationValue}</div>
+                <div class="event-duration-label">${durationLabel}</div>
             </div>
         `;
 
@@ -696,9 +745,11 @@ function renderCalendar() {
             const dayEnd = new Date(currentDay);
             dayEnd.setHours(23, 59, 59, 999);
             
-            // Show outages that overlap with this day (either start or are ongoing)
+            // Show only outages that started on this day
             const dayOutages = allOutages.filter(outage => {
-                return outage.startDate <= dayEnd && outage.endDate >= dayStart;
+                const outageStartDay = new Date(outage.startDate);
+                outageStartDay.setHours(0, 0, 0, 0);
+                return outageStartDay.getTime() === dayStart.getTime();
             });
             
             if (dayOutages.length > 0) {
@@ -719,11 +770,12 @@ function renderCalendar() {
                         minute: '2-digit'
                     });
                     
-                    const hours = (outage.duration / (1000 * 60 * 60)).toFixed(1);
+                    const hours = outage.duration / (1000 * 60 * 60);
+                    const durationText = formatDuration(hours);
                     
                     outageDiv.innerHTML = `
                         <span class="calendar-outage-time">${startTimeStr} → ${endTimeStr}</span>
-                        <span class="calendar-outage-duration">${hours} год</span>
+                        <span class="calendar-outage-duration">${durationText}</span>
                     `;
                     
                     outageDiv.title = `${outage.startDate.toLocaleString('uk-UA')} → ${outage.endDate.toLocaleString('uk-UA')}`;
