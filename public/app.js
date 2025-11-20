@@ -135,18 +135,23 @@ function updateDailyChart(dailyStats) {
         dailyChart.destroy();
     }
     
-    // Make chart scrollable if more than 10 days
+    // Make chart scrollable if more than 5 days
     const chartCanvas = document.getElementById('dailyChart');
     const chartWrapper = chartCanvas.parentElement;
     
-    if (dailyStats.length > 10) {
-        // Calculate width based on number of days (100px per day for better spacing)
-        const chartWidth = dailyStats.length * 100;
+    if (dailyStats.length > 5) {
+        // Calculate width based on number of days (120px per day for better spacing)
+        const chartWidth = dailyStats.length * 120;
         chartCanvas.style.width = chartWidth + 'px';
         chartCanvas.style.height = '400px';
         chartCanvas.width = chartWidth;
         chartCanvas.height = 400;
         chartWrapper.style.overflowX = 'auto';
+        
+        // Scroll to the right (most recent data) after chart renders
+        setTimeout(() => {
+            chartWrapper.scrollLeft = chartWrapper.scrollWidth;
+        }, 100);
     } else {
         chartCanvas.style.width = '';
         chartCanvas.style.height = '';
@@ -183,11 +188,11 @@ function updateDailyChart(dailyStats) {
             ]
         },
         options: {
-            responsive: dailyStats.length <= 10,
+            responsive: dailyStats.length <= 5,
             maintainAspectRatio: false,
             layout: {
                 padding: {
-                    left: dailyStats.length > 10 ? 60 : 10,
+                    left: 10,
                     right: 10
                 }
             },
@@ -202,12 +207,29 @@ function updateDailyChart(dailyStats) {
                     stacked: true,
                     beginAtZero: true,
                     max: 24,
+                    position: 'left',
                     title: {
                         display: true,
                         text: 'Години'
                     },
                     grid: {
                         color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y1: {
+                    stacked: true,
+                    beginAtZero: true,
+                    max: 24,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Години'
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        display: true
                     }
                 }
             },
@@ -235,6 +257,8 @@ function updateDailyChart(dailyStats) {
             id: 'offHoursLabel',
             afterDatasetsDraw: (chart) => {
                 const ctx = chart.ctx;
+                const isMobile = window.innerWidth <= 768;
+                
                 chart.data.datasets.forEach((dataset, datasetIndex) => {
                     // Only draw labels on the "Немає світла" dataset (index 1)
                     if (datasetIndex === 1) {
@@ -242,13 +266,17 @@ function updateDailyChart(dailyStats) {
                         meta.data.forEach((bar, index) => {
                             const offHours = parseFloat(offData[index]);
                             const barHeight = bar.height;
+                            const barWidth = bar.width;
                             
-                            // Only show label if:
-                            // 1. More than 0.5 hours outage
-                            // 2. Bar height is tall enough (at least 25 pixels) to fit the text
-                            if (offHours > 0.5 && barHeight >= 25) {
+                            // More lenient thresholds with wider bars
+                            const minHours = 0.5;
+                            const minHeight = isMobile ? 22 : 20;
+                            const fontSize = isMobile ? 10 : 11;
+                            
+                            // Only show label if bar is tall enough and has enough hours
+                            if (offHours > minHours && barHeight >= minHeight) {
                                 ctx.save();
-                                ctx.font = 'bold 11px Arial';
+                                ctx.font = `bold ${fontSize}px Arial`;
                                 ctx.fillStyle = '#fff';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
@@ -265,7 +293,7 @@ function updateDailyChart(dailyStats) {
                                     const m = totalMinutes % 60;
                                     // Format minutes with leading zero if needed
                                     const mm = m.toString().padStart(2, '0');
-                                    label = `${h}:${mm} г`;
+                                    label = isMobile ? `${h}:${mm}` : `${h}:${mm} г`;
                                 }
                                 
                                 const x = bar.x;

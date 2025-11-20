@@ -311,12 +311,15 @@ button:active {
     padding: 10px 18px;
     font-size: 13px;
     font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .btn-filter:hover {
     background: #f5f5f5;
     border-color: #2196F3;
     color: #2196F3;
+    transform: translateY(-1px);
 }
 
 button .material-icons {
