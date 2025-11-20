@@ -49,7 +49,11 @@ async function run() {
         
         // Run the scraper (suppress verbose output)
         await new Promise((resolve, reject) => {
-            exec('DOTENV_CONFIG_SILENT=true /opt/homebrew/bin/node src/scraper.js 2>&1 | grep -E "^(✓|❌)"', { shell: '/bin/bash' }, (error, stdout, stderr) => {
+            const scraperPath = path.join(__dirname, 'scraper.js');
+            exec(`DOTENV_CONFIG_SILENT=true node "${scraperPath}" 2>&1 | grep -E "^(✓|❌)"`, { 
+                cwd: path.join(__dirname, '..'),
+                shell: '/bin/bash' 
+            }, (error, stdout, stderr) => {
                 if (error) {
                     log(`❌ Scraper error: ${error.message}`);
                     reject(error);
