@@ -10,7 +10,7 @@ module.exports = {
       max_memory_restart: '200M',
       env: {
         NODE_ENV: 'production',
-        PORT: 80
+        PORT: 3000
       },
       error_file: 'data/pm2-error.log',
       out_file: 'data/pm2-out.log',
