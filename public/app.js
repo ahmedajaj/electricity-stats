@@ -359,6 +359,12 @@ function updateTimelineChart(periods, dailyStats) {
             <span>24:00</span>
         </div>
     `;
+    
+    // Show time scale on mobile too
+    if (window.innerWidth <= 768) {
+        timeScale.style.display = 'flex';
+    }
+    
     timeline.appendChild(timeScale);
     
     // Create timeline for each day using dailyStats
@@ -378,6 +384,11 @@ function updateTimelineChart(periods, dailyStats) {
         
         const dayBar = document.createElement('div');
         dayBar.className = 'timeline-day-bar';
+        
+        // Force height on mobile
+        if (window.innerWidth <= 768) {
+            dayBar.style.cssText = 'height: 40px !important; min-height: 40px !important;';
+        }
         
         // Day starts at 00:00 and ends at 23:59:59 in Kyiv time
         // Kyiv is UTC+2, so 00:00 Kyiv = 22:00 UTC (previous day)
@@ -410,8 +421,7 @@ function updateTimelineChart(periods, dailyStats) {
             const startPercent = ((periodStart - dayStart) / dayDuration) * 100;
             const widthPercent = (duration / dayDuration) * 100;
             
-            segment.style.left = startPercent + '%';
-            segment.style.width = widthPercent + '%';
+            segment.style.cssText = `left: ${startPercent}% !important; width: ${widthPercent}% !important;`;
             
             // Format time as HH:MM in Kyiv timezone (UTC+2)
             const startDate = new Date(periodStart);
