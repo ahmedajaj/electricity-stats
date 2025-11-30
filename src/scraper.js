@@ -75,7 +75,7 @@ async function scrapeChannel() {
                     let status = null;
 
                     // Check for electricity ON
-                    if (text.includes('є світло')) {
+                    if (text.includes('є світло') || text.includes('відновлено електропостачання')) {
                         status = 'on';
                     }
                     // Check for electricity OFF
