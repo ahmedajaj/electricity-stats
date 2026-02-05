@@ -3,6 +3,9 @@ const { StringSession } = require('telegram/sessions');
 const input = require('input');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 require('dotenv').config({ path: path.join(__dirname, '../data/.env'), silent: true });
 
@@ -130,6 +133,21 @@ async function scrapeChannel() {
         fs.writeFileSync(dataFile, JSON.stringify(allEvents, null, 2));
 
         console.log(`✓ Scraped ${totalMessages} messages | Added ${newEvents.length} new | Total: ${allEvents.length}`);
+
+        // Trigger battery level script if new events were added
+        if (newEvents.length > 0) {
+            if (isDev) console.log(`Triggering battery level script for ${newEvents.length} new event(s)...`);
+            const batteryScriptPath = path.join(__dirname, 'battery_level.sh');
+            
+            try {
+                const { stdout, stderr } = await execPromise(`bash "${batteryScriptPath}"`);
+                if (isDev && stdout) console.log('Battery script output:', stdout);
+                if (stderr) console.error('Battery script stderr:', stderr);
+                console.log('✓ Battery level sent to Telegram');
+            } catch (error) {
+                console.error('❌ Battery script failed:', error.message);
+            }
+        }
 
     } catch (error) {
         console.error('Scraper error:', error.message);
