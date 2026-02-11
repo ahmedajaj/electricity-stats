@@ -39,8 +39,14 @@ fi
 battery_level=${battery_soc%.*}
 
 # Build progress bar (10 segments, each = 10%)
-filled=$((battery_level / 10))
-empty=$((10 - filled))
+# 94% and above shows full 10/10
+if [ "$battery_level" -ge 94 ]; then
+  filled=10
+  empty=0
+else
+  filled=$((battery_level / 10))
+  empty=$((10 - filled))
+fi
 
 # Choose icon and color bar based on level
 if [ "$battery_level" -lt 20 ]; then
