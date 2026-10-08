@@ -1,160 +1,137 @@
-const { TelegramClient } = require('telegram');
-const { StringSession } = require('telegram/sessions');
-const input = require('input');
+// Scrapes the public web preview of the channel (https://t.me/s/<channel>).
+// No Telegram login, API keys or session file needed.
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
-require('dotenv').config({ path: path.join(__dirname, '../data/.env'), silent: true });
+require('dotenv').config({ path: path.join(__dirname, '../data/.env'), quiet: true });
 
-const apiId = parseInt(process.env.TELEGRAM_API_ID);
-const apiHash = process.env.TELEGRAM_API_HASH;
-const phoneNumber = process.env.TELEGRAM_PHONE;
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Load or create session
-let sessionString = '';
-const sessionFile = path.join(__dirname, '../data/session.json');
-if (fs.existsSync(sessionFile)) {
-    const sessionData = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
-    sessionString = sessionData.session || '';
+const channelUsername = 'lvivskiy7a';
+const startDate = new Date('2025-10-01T00:00:00');
+// Re-scan this far behind the newest stored event, to catch anything missed
+const OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;
+const MAX_PAGES = 500;
+
+const dataDir = path.join(__dirname, '../data');
+const dataFile = path.join(dataDir, 'events.json');
+
+function decodeHtml(str) {
+    return str
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+        .replace(/&amp;/g, '&');
 }
 
-const stringSession = new StringSession(sessionString);
+function detectStatus(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('є світло') || lower.includes('відновлено електропостачання')) return 'on';
+    if (lower.includes('відключено електропостачання')) return 'off';
+    return null;
+}
+
+// Returns [{ id, date, text }] for one page of the web preview
+async function fetchPage(before) {
+    const url = `https://t.me/s/${channelUsername}` + (before ? `?before=${before}` : '');
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    const html = await res.text();
+
+    const posts = [];
+    const blocks = html.split('class="tgme_widget_message_wrap').slice(1);
+    for (const block of blocks) {
+        const idMatch = block.match(new RegExp(`data-post="${channelUsername}/(\\d+)"`));
+        const timeMatch = block.match(/<time datetime="([^"]+)"/);
+        if (!idMatch || !timeMatch) continue;
+        // Main message text only (reply previews don't carry js-message_text)
+        const textMatch = block.match(/<div class="tgme_widget_message_text js-message_text"[^>]*>([\s\S]*?)<\/div>/);
+        posts.push({
+            id: parseInt(idMatch[1], 10),
+            date: new Date(timeMatch[1]),
+            text: textMatch ? decodeHtml(textMatch[1]) : '',
+        });
+    }
+    return posts;
+}
 
 async function scrapeChannel() {
-    if (isDev) console.log('Starting Telegram scraper...');
-    
-    const client = new TelegramClient(stringSession, apiId, apiHash, {
-        connectionRetries: 5,
-    });
-
-    await client.start({
-        phoneNumber: async () => phoneNumber,
-        password: async () => await input.text('Please enter your password: '),
-        phoneCode: async () => await input.text('Please enter the code you received: '),
-        onError: (err) => { if (isDev) console.log(err); },
-    });
-
-    if (isDev) console.log('Connected to Telegram');
-
-    // Save session for future use
-    const session = client.session.save();
-    fs.writeFileSync(sessionFile, JSON.stringify({ session }));
-
-    const channelUsername = 'lvivskiy7a';
-    const startDate = new Date('2025-10-01T00:00:00');
-
-    if (isDev) console.log(`Fetching messages from @${channelUsername} since ${startDate.toISOString()}...`);
-
-    try {
-        const channel = await client.getEntity(channelUsername);
-        const messages = [];
-        let offsetId = 0;
-        let totalMessages = 0;
-        
-        // Fetch messages in batches
-        while (true) {
-            const result = await client.getMessages(channel, {
-                limit: 100,
-                offsetId: offsetId,
-            });
-
-            if (result.length === 0) {
-                break;
-            }
-
-            for (const message of result) {
-                // Stop if we've gone past our start date
-                if (message.date < startDate.getTime() / 1000) {
-                    if (isDev) console.log('Reached messages before October 1, 2025');
-                    break;
-                }
-
-                if (message.message) {
-                    const text = message.message.toLowerCase();
-                    let status = null;
-
-                    // Check for electricity ON
-                    if (text.includes('є світло') || text.includes('відновлено електропостачання')) {
-                        status = 'on';
-                    }
-                    // Check for electricity OFF
-                    else if (text.includes('відключено електропостачання')) {
-                        status = 'off';
-                    }
-
-                    if (status) {
-                        messages.push({
-                            date: new Date(message.date * 1000).toISOString(),
-                            status: status
-                        });
-                        totalMessages++;
-                    }
-                }
-            }
-
-            // Check if we've gone past start date
-            if (result[result.length - 1].date < startDate.getTime() / 1000) {
-                break;
-            }
-
-            offsetId = result[result.length - 1].id;
-            if (isDev && totalMessages % 50 === 0) {
-                console.log(`Fetched ${totalMessages} relevant messages so far...`);
-            }
-        }
-
-        // Sort messages by date (oldest first)
-        messages.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        // Save to data file
-        const dataDir = path.join(__dirname, '../data');
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir);
-        }
-
-        const dataFile = path.join(dataDir, 'events.json');
-        
-        // Load existing data if available
-        let existingEvents = [];
-        if (fs.existsSync(dataFile)) {
-            existingEvents = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-        }
-
-        // Merge new messages with existing, avoiding duplicates by date
-        const existingDates = new Set(existingEvents.map(e => e.date));
-        const newEvents = messages.filter(m => !existingDates.has(m.date));
-        
-        const allEvents = [...existingEvents, ...newEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        fs.writeFileSync(dataFile, JSON.stringify(allEvents, null, 2));
-
-        console.log(`✓ Scraped ${totalMessages} messages | Added ${newEvents.length} new | Total: ${allEvents.length}`);
-
-        // Trigger battery level script if new events were added
-        if (newEvents.length > 0) {
-            if (isDev) console.log(`Triggering battery level script for ${newEvents.length} new event(s)...`);
-            const batteryScriptPath = path.join(__dirname, 'battery_level.sh');
-            
-            try {
-                const { stdout, stderr } = await execPromise(`bash "${batteryScriptPath}"`);
-                if (isDev && stdout) console.log('Battery script output:', stdout);
-                if (stderr) console.error('Battery script stderr:', stderr);
-                console.log('✓ Battery level sent to Telegram');
-            } catch (error) {
-                console.error('❌ Battery script failed:', error.message);
-            }
-        }
-
-    } catch (error) {
-        console.error('Scraper error:', error.message);
-        throw error;
+    let existingEvents = [];
+    if (fs.existsSync(dataFile)) {
+        existingEvents = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     }
 
-    await client.disconnect();
+    const newest = existingEvents.length
+        ? Math.max(...existingEvents.map(e => new Date(e.date).getTime()))
+        : null;
+    const cutoff = newest ? new Date(Math.max(newest - OVERLAP_MS, startDate.getTime())) : startDate;
+
+    if (isDev) console.log(`Fetching t.me/s/${channelUsername} back to ${cutoff.toISOString()}...`);
+
+    const messages = [];
+    let before = null;
+    let totalMessages = 0;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+        const posts = await fetchPage(before);
+        if (posts.length === 0) break;
+
+        for (const post of posts) {
+            if (post.date < cutoff) continue;
+            const status = detectStatus(post.text);
+            if (status) {
+                messages.push({ date: post.date.toISOString(), status });
+                totalMessages++;
+            }
+        }
+
+        const oldest = posts.reduce((a, b) => (a.id < b.id ? a : b));
+        if (oldest.date < cutoff || oldest.id <= 1) break;
+        before = oldest.id;
+
+        if (isDev) console.log(`  page ${page + 1}: back to ${oldest.date.toISOString()} (${totalMessages} status messages)`);
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir);
+    }
+
+    // Merge new messages with existing, avoiding duplicates by date
+    const existingDates = new Set(existingEvents.map(e => e.date));
+    const newEvents = messages.filter(m => !existingDates.has(m.date));
+
+    const allEvents = [...existingEvents, ...newEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    fs.writeFileSync(dataFile, JSON.stringify(allEvents, null, 2));
+
+    console.log(`✓ Scraped ${totalMessages} messages | Added ${newEvents.length} new | Total: ${allEvents.length}`);
+
+    // Trigger battery level script if new events were added
+    if (newEvents.length > 0 && process.env.SKIP_BATTERY !== '1') {
+        if (isDev) console.log(`Triggering battery level script for ${newEvents.length} new event(s)...`);
+        const batteryScriptPath = path.join(__dirname, 'battery_level.sh');
+
+        try {
+            const { stdout, stderr } = await execPromise(`bash "${batteryScriptPath}"`);
+            if (isDev && stdout) console.log('Battery script output:', stdout);
+            if (stderr) console.error('Battery script stderr:', stderr);
+            console.log('✓ Battery level sent to Telegram');
+        } catch (error) {
+            console.error('❌ Battery script failed:', error.message);
+        }
+    }
 }
 
-scrapeChannel().catch(console.error);
+scrapeChannel().catch((error) => {
+    console.error('❌ Scraper error:', error.message);
+    process.exit(1);
+});

@@ -1,0 +1,223 @@
+@import "tailwindcss";
+
+/* Design tokens shared with battery-calculator */
+@theme {
+  --font-sans: 'Onest', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --color-slate-50: oklch(98.2% 0.003 250);
+  --color-slate-100: oklch(95.8% 0.005 250);
+  --color-slate-200: oklch(91.2% 0.008 255);
+  --color-slate-300: oklch(83% 0.012 255);
+  --color-slate-400: oklch(60% 0.02 258);
+  --color-slate-500: oklch(49% 0.022 260);
+  --color-slate-600: oklch(40% 0.024 262);
+  --color-slate-700: oklch(32% 0.024 264);
+  --color-slate-800: oklch(24% 0.022 266);
+  --color-slate-900: oklch(18% 0.02 268);
+
+  --shadow-sm: 0 1px 2px oklch(25% 0.02 260 / 0.04), 0 4px 16px -4px oklch(25% 0.02 260 / 0.06);
+  --shadow-md: 0 2px 4px oklch(25% 0.02 260 / 0.04), 0 12px 32px -8px oklch(25% 0.02 260 / 0.1);
+  --shadow-lg: 0 4px 8px oklch(25% 0.02 260 / 0.04), 0 24px 48px -12px oklch(25% 0.02 260 / 0.14);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+
+  --color-energy-400: oklch(82% 0.17 160);
+  --color-energy-500: oklch(72% 0.17 162);
+  --color-energy-600: oklch(62% 0.15 165);
+
+  /* Power status colors: used by every chart, strip and chip */
+  --color-on: #34c38f;
+  --color-on-soft: oklch(94% 0.05 162);
+  --color-off: #ef5350;
+  --color-off-soft: oklch(95% 0.03 22);
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@layer base {
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+  background-color: oklch(97.6% 0.004 250);
+  background-image:
+    radial-gradient(60rem 40rem at 0% -10%, oklch(92% 0.06 165 / 0.55), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 0%, oklch(92% 0.05 240 / 0.5), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 110%, oklch(94% 0.04 290 / 0.35), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--color-slate-800);
+}
+
+::selection {
+  background: oklch(88% 0.1 165);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-energy-500);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-300);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+input[type="date"] {
+  color-scheme: light;
+}
+
+}
+
+@layer components {
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--color-slate-900);
+  margin-bottom: 0.875rem;
+  padding-left: 0.125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--color-slate-300), transparent);
+}
+
+.section-title .section-number {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: oklch(42% 0.1 165);
+  background: oklch(94% 0.06 165);
+  border: 1px solid oklch(84% 0.09 165);
+  padding: 0.125rem 0.4375rem;
+  border-radius: 999px;
+}
+
+.card {
+  @apply bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6;
+}
+
+.card-head {
+  @apply flex items-center gap-3 mb-5;
+}
+
+.card-icon {
+  @apply grid place-items-center w-9 h-9 shrink-0 rounded-xl bg-slate-900 text-white shadow-sm;
+}
+
+.card-icon > svg {
+  @apply w-[18px] h-[18px];
+}
+
+.card-title {
+  @apply text-base md:text-[1.0625rem] font-semibold tracking-tight text-slate-900 leading-snug;
+}
+
+.card-sub {
+  @apply text-[13px] text-slate-600 leading-snug mt-0.5;
+}
+
+.field-label {
+  @apply text-xs font-medium text-slate-700 flex items-center gap-1.5;
+}
+
+.input {
+  @apply w-full h-10 bg-white border border-slate-300 rounded-lg px-3 text-sm font-mono font-medium text-slate-900
+    transition-colors focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10;
+}
+
+.inset {
+  @apply bg-slate-50 rounded-xl ring-1 ring-inset ring-slate-200;
+}
+
+.seg {
+  @apply flex p-1 gap-1 bg-slate-100 rounded-xl ring-1 ring-inset ring-slate-200;
+}
+
+.seg-btn {
+  @apply flex-1 py-2 px-3 rounded-lg text-sm font-medium text-slate-600 transition-all hover:text-slate-900 whitespace-nowrap;
+}
+
+.seg-btn[aria-pressed="true"] {
+  @apply bg-white text-slate-900 shadow-sm ring-1 ring-slate-200;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-white text-slate-800 border border-slate-300 hover:bg-slate-50;
+}
+
+.chip {
+  @apply inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ring-1 ring-inset whitespace-nowrap;
+}
+
+.chip-live {
+  @apply bg-emerald-50 text-emerald-800 ring-emerald-300;
+}
+
+.chip-off {
+  @apply bg-rose-50 text-rose-700 ring-rose-300;
+}
+
+.chip-neutral {
+  @apply bg-slate-100 text-slate-700 ring-slate-300;
+}
+
+.alert-error {
+  @apply rounded-xl px-3.5 py-3 text-sm ring-1 ring-inset bg-rose-50 text-rose-800 ring-rose-300;
+}
+
+/* Unknown time (before data starts / in the future) */
+.strip-empty {
+  background: repeating-linear-gradient(-45deg, var(--color-slate-100) 0 4px, var(--color-slate-50) 4px 8px);
+}
+
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

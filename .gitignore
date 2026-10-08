@@ -10,3 +10,4 @@ session.json
 *.swp
 *.swo
 *~
+web/dist/
