@@ -13,6 +13,8 @@ import { HourProfile } from './components/HourProfile.tsx';
 import { OutageCalendar } from './components/OutageCalendar.tsx';
 import { DayTimeline } from './components/DayTimeline.tsx';
 import { OutageList } from './components/OutageList.tsx';
+import { AreaStats } from './components/AreaStats.tsx';
+import { useAreaStats } from './hooks/useAreaStats.ts';
 
 const CHANNEL = 'lvivskiy7a';
 const PRESET_KEY = 'electricity-stats:preset';
@@ -38,6 +40,7 @@ function savePreset(p: Preset) {
 export default function App() {
   const { events, error, loadedAt, loading, reload } = useEvents();
   const now = useNow();
+  const area = useAreaStats();
   const [preset, setPreset] = useState<Preset>(loadPreset);
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
 
@@ -109,12 +112,17 @@ export default function App() {
       ) : (
         <main className="space-y-9">
           <section>
-            <SectionTitle n="01">Зараз</SectionTitle>
+            <SectionTitle n="01">Русової 7А зараз</SectionTitle>
             <StatusHero periods={data.periods} today={data.today} now={now} />
           </section>
 
           <section>
-            <SectionTitle n="02">Підсумки за період</SectionTitle>
+            <SectionTitle n="02">Район і місто</SectionTitle>
+            <AreaStats stats={area.stats} error={area.error} />
+          </section>
+
+          <section>
+            <SectionTitle n="03">Підсумки за період</SectionTitle>
             <div className="card space-y-5">
               <PeriodPicker
                 range={range}
@@ -131,7 +139,7 @@ export default function App() {
           </section>
 
           <section className="space-y-4">
-            <SectionTitle n="03">Динаміка</SectionTitle>
+            <SectionTitle n="04">Динаміка</SectionTitle>
             <DailyChart buckets={data.buckets} weekly={data.weekly} />
             <div className="grid gap-4 lg:grid-cols-2 items-start">
               <HourProfile profile={data.profile} />
@@ -140,12 +148,12 @@ export default function App() {
           </section>
 
           <section>
-            <SectionTitle n="04">По годинах</SectionTitle>
+            <SectionTitle n="05">По годинах</SectionTitle>
             <DayTimeline days={data.days} now={now} />
           </section>
 
           <section>
-            <SectionTitle n="05">Журнал</SectionTitle>
+            <SectionTitle n="06">Журнал</SectionTitle>
             <OutageList outages={data.summary.outages} />
           </section>
         </main>

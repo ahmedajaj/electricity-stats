@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { getEvents } = require('./eventSource');
+const { getAreaStats } = require('./areaStats');
 
 require('dotenv').config({ path: path.join(__dirname, '../data/.env'), quiet: true });
 
@@ -18,6 +19,16 @@ app.get('/api/events', async (req, res) => {
     } catch (error) {
         console.error('Failed to load events:', error.message);
         res.status(503).json({ error: 'Events are unavailable' });
+    }
+});
+
+app.get('/api/areas', async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-cache');
+        res.json(await getAreaStats());
+    } catch (error) {
+        console.error('Failed to load area stats:', error.message);
+        res.status(503).json({ error: 'Area stats are unavailable' });
     }
 });
 

@@ -5,7 +5,8 @@ Electricity outage statistics for **Київ, Софії Русової 7А**.
 The scraper reads the public Telegram channel [@lvivskiy7a](https://t.me/lvivskiy7a) through its web preview
 (`t.me/s/lvivskiy7a` — no Telegram login or API keys), stores status changes in `data/events.json` and uploads
 them to a [GitHub Gist](https://gist.github.com/ahmedajaj/f73208e345aee68d11c31c4d1f8c32f7). The web app shows
-the current status and statistics for any period.
+the current status and statistics for any period, plus a live comparison of the Osokorky area with all of Kyiv
+(share of [svitlobot.in.ua](https://svitlobot.in.ua/map) points with power).
 
 **Data format** (status changes, UTC):
 ```json
@@ -35,7 +36,8 @@ Set `SKIP_BATTERY=1` to skip the Deye battery message that is sent to Telegram w
 
 ```
 ├── src/                     # Node backend (CommonJS)
-│   ├── server.js            # Express: GET /api/events + serves web/dist
+│   ├── server.js            # Express: GET /api/events, GET /api/areas + serves web/dist
+│   ├── areaStats.js         # Live Osokorky / Kyiv on-off share from svitlobot.in.ua map feed
 │   ├── eventSource.js       # Events from Gist (fallback: data/events.json), read-only
 │   ├── scraper.js           # t.me/s/<channel> scraper → data/events.json
 │   ├── gist-uploader.js     # GitHub Gist API
