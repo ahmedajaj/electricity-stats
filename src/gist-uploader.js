@@ -16,7 +16,7 @@ class GistUploader {
         
         this.octokit = null;
         this.gistId = gistId;
-        this.hashFile = path.join(__dirname, '../data', '.last-upload-hash');
+        this.dataDir = path.join(__dirname, '../data');
     }
 
     async initialize() {
@@ -41,26 +41,33 @@ class GistUploader {
     /**
      * Get the hash of last uploaded version
      */
-    getLastUploadHash() {
-        if (!fs.existsSync(this.hashFile)) {
+    hashFileFor(filename) {
+        // events.json keeps the original name so existing installs don't re-upload
+        const suffix = filename === 'events.json' ? '' : `-${filename}`;
+        return path.join(this.dataDir, `.last-upload-hash${suffix}`);
+    }
+
+    getLastUploadHash(filename) {
+        const hashFile = this.hashFileFor(filename);
+        if (!fs.existsSync(hashFile)) {
             return null;
         }
-        return fs.readFileSync(this.hashFile, 'utf8').trim();
+        return fs.readFileSync(hashFile, 'utf8').trim();
     }
 
     /**
      * Save the hash of current upload
      */
-    saveUploadHash(hash) {
-        fs.writeFileSync(this.hashFile, hash);
+    saveUploadHash(filename, hash) {
+        fs.writeFileSync(this.hashFileFor(filename), hash);
     }
 
     /**
      * Check if file has changed since last upload
      */
-    hasChanged(filePath) {
+    hasChanged(filePath, filename) {
         const currentHash = this.getFileHash(filePath);
-        const lastHash = this.getLastUploadHash();
+        const lastHash = this.getLastUploadHash(filename);
         
         return currentHash !== lastHash;
     }
@@ -77,7 +84,7 @@ class GistUploader {
         }
 
         // Check if file has changed
-        if (!this.hasChanged(filePath)) {
+        if (!this.hasChanged(filePath, filename)) {
             return { changed: false, gistUrl: null };
         }
 
@@ -121,7 +128,7 @@ class GistUploader {
             }
 
             // Save hash of uploaded version
-            this.saveUploadHash(currentHash);
+            this.saveUploadHash(filename, currentHash);
 
             return { 
                 changed: true, 

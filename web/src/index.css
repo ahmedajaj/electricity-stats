@@ -197,6 +197,11 @@ input[type="date"] {
   @apply rounded-xl px-3.5 py-3 text-sm ring-1 ring-inset bg-rose-50 text-rose-800 ring-rose-300;
 }
 
+/* Schedule not in force (emergency outages) */
+.strip-emergency {
+  background: repeating-linear-gradient(-45deg, oklch(88% 0.1 70) 0 4px, oklch(95% 0.05 75) 4px 8px);
+}
+
 /* Unknown time (before data starts / in the future) */
 .strip-empty {
   background: repeating-linear-gradient(-45deg, var(--color-slate-100) 0 4px, var(--color-slate-50) 4px 8px);

@@ -54,13 +54,14 @@ const TONES = {
   violet: 'bg-violet-100 text-violet-600',
 } as const;
 
-function Tile({
+export function Tile({
   icon,
   tone,
   label,
   value,
   hint,
   className = '',
+  wrap = false,
 }: {
   icon: React.ReactElement;
   tone: keyof typeof TONES;
@@ -68,15 +69,17 @@ function Tile({
   value: string;
   hint?: string;
   className?: string;
+  /** Let long labels wrap instead of truncating */
+  wrap?: boolean;
 }) {
   return (
     <div className={`inset px-3.5 py-3 md:px-4 md:py-3.5 ${className}`}>
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className={`grid place-items-center w-6 h-6 rounded-lg shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5 ${TONES[tone]}`}>{icon}</span>
-        <span className="text-xs text-slate-600 font-medium truncate">{label}</span>
+        <span className={`text-xs text-slate-600 font-medium ${wrap ? 'leading-tight' : 'truncate'}`}>{label}</span>
       </div>
       <div className="text-base md:text-lg font-semibold tracking-tight text-slate-900 truncate">{value}</div>
-      {hint && <div className="text-[11px] text-slate-500 truncate first-letter:uppercase">{hint}</div>}
+      {hint && <div className={`text-[11px] text-slate-500 first-letter:uppercase ${wrap ? 'leading-snug mt-0.5' : 'truncate'}`}>{hint}</div>}
     </div>
   );
 }

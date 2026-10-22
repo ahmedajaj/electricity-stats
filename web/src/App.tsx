@@ -15,6 +15,8 @@ import { DayTimeline } from './components/DayTimeline.tsx';
 import { OutageList } from './components/OutageList.tsx';
 import { AreaStats } from './components/AreaStats.tsx';
 import { useAreaStats } from './hooks/useAreaStats.ts';
+import { ScheduleCompare } from './components/ScheduleCompare.tsx';
+import { useSchedule } from './hooks/useSchedule.ts';
 
 const CHANNEL = 'lvivskiy7a';
 const PRESET_KEY = 'electricity-stats:preset';
@@ -41,6 +43,7 @@ export default function App() {
   const { events, error, loadedAt, loading, reload } = useEvents();
   const now = useNow();
   const area = useAreaStats();
+  const schedule = useSchedule();
   const [preset, setPreset] = useState<Preset>(loadPreset);
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
 
@@ -121,8 +124,15 @@ export default function App() {
             <AreaStats stats={area.stats} error={area.error} />
           </section>
 
+          {schedule.archive && (
+            <section>
+              <SectionTitle n="03">План і факт</SectionTitle>
+              <ScheduleCompare archive={schedule.archive} periods={data.periods} now={now} />
+            </section>
+          )}
+
           <section>
-            <SectionTitle n="03">Підсумки за період</SectionTitle>
+            <SectionTitle n="04">Підсумки за період</SectionTitle>
             <div className="card space-y-5">
               <PeriodPicker
                 range={range}
@@ -139,7 +149,7 @@ export default function App() {
           </section>
 
           <section className="space-y-4">
-            <SectionTitle n="04">Динаміка</SectionTitle>
+            <SectionTitle n="05">Динаміка</SectionTitle>
             <DailyChart buckets={data.buckets} weekly={data.weekly} />
             <div className="grid gap-4 lg:grid-cols-2 items-start">
               <HourProfile profile={data.profile} />
@@ -148,12 +158,12 @@ export default function App() {
           </section>
 
           <section>
-            <SectionTitle n="05">По годинах</SectionTitle>
+            <SectionTitle n="06">По годинах</SectionTitle>
             <DayTimeline days={data.days} now={now} />
           </section>
 
           <section>
-            <SectionTitle n="06">Журнал</SectionTitle>
+            <SectionTitle n="07">Журнал</SectionTitle>
             <OutageList outages={data.summary.outages} />
           </section>
         </main>

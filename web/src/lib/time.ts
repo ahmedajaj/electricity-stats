@@ -55,6 +55,13 @@ export function startOfDay(key: string): number {
   return off2 === off ? t : guess - off2;
 }
 
+/** Epoch ms of a Kyiv wall-clock time given as minutes after midnight (handles DST days) */
+export function atKyivMinute(key: string, minutes: number): number {
+  const start = startOfDay(key);
+  const t = start + minutes * 60_000;
+  return t + (tzOffset(start) - tzOffset(t));
+}
+
 export function addDays(key: string, n: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + n));

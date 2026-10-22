@@ -9,6 +9,7 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const GistUploader = require('./gist-uploader');
+const { collectSchedule, SCHEDULE_FILE, GROUP } = require('./yasno');
 
 require('dotenv').config({ path: path.join(__dirname, '../data/.env'), quiet: true });
 
@@ -55,6 +56,16 @@ async function run() {
     try {
         const uploader = new GistUploader();
         await uploader.initialize();
+
+        // Planned schedule: a failure here must not block the outage data
+        try {
+            const r = await collectSchedule();
+            log(`✓ Schedule ${GROUP}: ${r.added ? `${r.added} new revision(s)` : 'no changes'} | today ${r.todayStatus}`);
+            const sched = await uploader.uploadToGist(SCHEDULE_FILE, 'schedule.json');
+            if (sched.changed) log('✅ Schedule uploaded to Gist');
+        } catch (error) {
+            log(`❌ Schedule: ${error.message}`);
+        }
 
         await runScraper();
 
