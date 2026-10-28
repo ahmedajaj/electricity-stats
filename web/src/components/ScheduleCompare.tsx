@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CalendarClock, CheckCheck, ChevronDown, PencilLine, Siren, SunMedium, ZapOff } from 'lucide-react';
 import type { Period } from '../lib/stats.ts';
 import type { DayComparison, PlanSegment, ScheduleArchive } from '../lib/schedule.ts';
-import { SCHEDULE_APPLIES, compareDay, latestPlan, summarizeComparisons } from '../lib/schedule.ts';
+import { SCHEDULE_APPLIES, changeTimes, compareDay, latestPlan, summarizeComparisons } from '../lib/schedule.ts';
 import { addDays, dayBounds, dayKey } from '../lib/time.ts';
 import { fmtDayKey, fmtDayShort, fmtDuration, fmtPercent, fmtTime } from '../lib/format.ts';
 import { DayStrip, HourTicks } from './DayStrip.tsx';
@@ -16,7 +16,7 @@ interface Props {
   now: number;
 }
 
-/** ЯСНО planned schedule for group vs what actually happened */
+/** ДТЕК planned schedule for our group vs what actually happened */
 export function ScheduleCompare({ archive, periods, now }: Props) {
   const [expanded, setExpanded] = useState(false);
   const today = dayKey(now);
@@ -43,7 +43,7 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
             <CalendarClock />
           </div>
           <div>
-            <h2 className="card-title">Графік ЯСНО і факт</h2>
+            <h2 className="card-title">Графік ДТЕК і факт</h2>
             <p className="card-sub">
               Група {archive.group}
               {firstDay && <> · графік збирається з {fmtDayShort(firstDay)}</>}
@@ -61,16 +61,14 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
         </div>
         <div className="grid grid-cols-[2.75rem_1fr] gap-x-3 gap-y-1.5 items-center">
           <span className="text-xs text-slate-500">План</span>
-          <PlanStrip start={todayStart} end={todayEnd} plan={todayCmp?.plan ?? todayLatest.plan} now={now} markers={revisionMarkers(archive, today)} />
+          <PlanStrip start={todayStart} end={todayEnd} plan={todayCmp?.plan ?? todayLatest.plan} now={now} markers={todayCmp?.changed ? changeTimes(today, archive.days[today]) : []} />
           <span className="text-xs text-slate-500">Факт</span>
           <DayStrip start={todayStart} end={todayEnd} periods={todayFact} now={now} height="h-3.5" />
           <span />
           <HourTicks />
         </div>
-        {todayCmp && todayCmp.revisions > 1 && (
-          <p className="text-xs text-slate-500 mt-2">
-            Графік на сьогодні змінювали {todayCmp.revisions - 1} раз(и) — позначки ▾ на смузі плану
-          </p>
+        {todayCmp?.changed && (
+          <p className="text-xs text-slate-500 mt-2">Графік на сьогодні змінено — позначка ▾ на смузі плану показує, коли</p>
         )}
 
         <div className="border-t border-slate-200 mt-3.5 pt-3">
@@ -98,9 +96,9 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
           wrap
           icon={<PencilLine />}
           tone="violet"
-          label="Змін графіка"
-          value={String(summary.changes)}
-          hint={summary.daysWithoutSchedule ? `екстрені: ${summary.daysWithoutSchedule} дн.` : 'екстрених не було'}
+          label="Днів зі зміною графіка"
+          value={String(summary.daysChanged)}
+          hint={summary.daysEmergency ? `екстрені відключення: ${summary.daysEmergency} дн.` : 'екстрених не було'}
         />
       </div>
       <p className="text-[11px] text-slate-500 mb-4">
@@ -110,7 +108,7 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
       {/* Past days */}
       {pastDays.length === 0 ? (
         <div className="inset px-4 py-5 text-center text-sm text-slate-600">
-          Історія по днях з’явиться завтра — ЯСНО не зберігає минулі графіки, тож ми збираємо їх самі.
+          Історія по днях з’явиться завтра — ДТЕК не зберігає минулі графіки, тож ми збираємо їх самі.
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
@@ -140,8 +138,8 @@ function DayRow({ day, periods }: { day: DayComparison; periods: Period[] }) {
     <div className="grid grid-cols-[1fr_auto] md:grid-cols-[7rem_1fr_10.5rem] gap-x-3 gap-y-1.5 items-center py-2.5">
       <span className="text-xs text-slate-600 first-letter:uppercase">{fmtDayKey(day.key)}</span>
       <div className="md:order-3 flex items-center justify-end gap-1.5">
-        {day.statuses.length > 0 && <span className="chip chip-off">екстрені</span>}
-        {day.revisions > 1 && <span className="chip chip-neutral">змін: {day.revisions - 1}</span>}
+        {day.emergency && <span className="chip chip-off">екстрені</span>}
+        {day.changed && <span className="chip chip-neutral">графік змінено</span>}
         <span className={`text-xs font-mono font-semibold ${share == null ? 'text-slate-400' : share >= 0.85 ? 'text-emerald-700' : share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>
           {share == null ? '—' : fmtPercent(share)}
         </span>
@@ -203,18 +201,6 @@ function StatusChip({ status }: { status: string | null }) {
     </span>
   );
   return <span className="chip chip-neutral">{status ? statusLabel(status) : 'Немає даних'}</span>;
-}
-
-function revisionMarkers(archive: ScheduleArchive, key: string): number[] {
-  const [start, end] = dayBounds(key);
-  return (archive.days[key] ?? [])
-    .slice(1)
-    .map(r => {
-      const fetched = Date.parse(r.fetchedAt);
-      const updated = r.updatedOn ? Date.parse(r.updatedOn) : NaN;
-      return Number.isFinite(updated) && updated <= fetched ? updated : fetched;
-    })
-    .filter(t => t > start && t < end);
 }
 
 /** "HH:MM" with the day's end shown as 24:00 instead of 00:00 */

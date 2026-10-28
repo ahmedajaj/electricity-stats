@@ -3,7 +3,7 @@ import type { ScheduleArchive } from '../lib/schedule.ts';
 
 const REFRESH_MS = 5 * 60_000;
 
-/** Collected ЯСНО schedule revisions, refreshed every 5 minutes */
+/** Collected ДТЕК schedule revisions, refreshed every 5 minutes */
 export function useSchedule() {
   const [archive, setArchive] = useState<ScheduleArchive | null>(null);
   const [error, setError] = useState<string | null>(null);

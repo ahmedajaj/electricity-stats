@@ -1,4 +1,4 @@
-// Planned outage schedule (ЯСНО) vs actual outages.
+// Planned outage schedule (ДТЕК, via the Yasno API) vs actual outages.
 //
 // The archive holds every revision of a day's schedule as it was collected.
 // A revision is in force from when it was published (updatedOn, or when we first
@@ -88,10 +88,7 @@ export function latestPlan(key: string, revisions: Revision[] | undefined): { pl
   if (!rev) return { plan: [], status: null };
   const [dayStart, dayEnd] = dayBounds(key);
   if (rev.status !== SCHEDULE_APPLIES) return { plan: [{ start: dayStart, end: dayEnd, kind: 'none', status: rev.status }], status: rev.status };
-  const plan = rev.slots
-    .map(s => ({ start: atKyivMinute(key, s.start), end: atKyivMinute(key, s.end), kind: slotKind(s.type) }))
-    .filter(s => s.end > s.start);
-  return { plan: merge(plan), status: rev.status };
+  return { plan: slotsToPlan(key, rev.slots), status: rev.status };
 }
 
 function merge(segments: PlanSegment[]): PlanSegment[] {
@@ -104,12 +101,61 @@ function merge(segments: PlanSegment[]): PlanSegment[] {
   return out;
 }
 
+/** Statuses that are not an emergency: the next day's placeholder and "we have no data" */
+const NOT_EMERGENCY = new Set(['Unknown', 'WaitingForSchedule']);
+
+export function isEmergency(status: string | undefined): boolean {
+  return !!status && status !== SCHEDULE_APPLIES && !NOT_EMERGENCY.has(status);
+}
+
+function slotsToPlan(key: string, slots: Slot[]): PlanSegment[] {
+  return merge(
+    slots
+      .map(s => ({ start: atKyivMinute(key, s.start), end: atKyivMinute(key, s.end), kind: slotKind(s.type) }))
+      .filter(s => s.end > s.start),
+  );
+}
+
+/**
+ * Whether the plan actually in force differed from the first published schedule.
+ * Placeholders before publication and a change that was reverted before it took
+ * effect don't count; emergency stretches are reported separately.
+ */
+function planChanged(key: string, revisions: Revision[] | undefined, inForce: PlanSegment[]): boolean {
+  const first = revisions?.find(r => r.status === SCHEDULE_APPLIES);
+  if (!first) return false;
+  const baseline = slotsToPlan(key, first.slots);
+  for (const seg of inForce) {
+    if (seg.kind === 'none') continue;
+    for (const b of baseline) {
+      if (Math.min(seg.end, b.end) > Math.max(seg.start, b.start) && seg.kind !== b.kind) return true;
+    }
+  }
+  return false;
+}
+
+/** When each revision that changed the plan started to apply (for markers on the plan strip) */
+export function changeTimes(key: string, revisions: Revision[] | undefined): number[] {
+  const [start, end] = dayBounds(key);
+  const out: number[] = [];
+  let prev: string | null = null;
+  for (const r of revisions ?? []) {
+    if (r.status !== SCHEDULE_APPLIES) continue;
+    const fp = JSON.stringify(r.slots.map(s => [s.start, s.end, s.type]));
+    const t = validFrom(r);
+    if (prev !== null && fp !== prev && t > start && t < end) out.push(t);
+    prev = fp;
+  }
+  return out;
+}
+
 export interface DayComparison {
   key: string;
   plan: PlanSegment[];
-  revisions: number;
-  /** Any part of the day without a schedule in force (emergency etc.) */
-  statuses: string[];
+  /** An emergency status (e.g. EmergencyShutdowns) was in force during the day */
+  emergency: boolean;
+  /** The plan in force differed from the first published schedule for the day */
+  changed: boolean;
   plannedOffMs: number;
   actualOffMs: number;
   /** Time where plan and reality agree, among comparable time */
@@ -130,8 +176,8 @@ export function compareDay(key: string, revisions: Revision[] | undefined, perio
   const result: DayComparison = {
     key,
     plan,
-    revisions: revisions?.length ?? 0,
-    statuses: [...new Set((revisions ?? []).map(r => r.status).filter(s => s !== SCHEDULE_APPLIES))],
+    emergency: plan.some(s => s.kind === 'none' && isEmergency(s.status)),
+    changed: planChanged(key, revisions, plan),
     plannedOffMs: 0,
     actualOffMs: 0,
     matchMs: 0,
@@ -171,9 +217,8 @@ export interface ComparisonSummary {
   actualOffMs: number;
   unplannedOffMs: number;
   spareOnMs: number;
-  /** Revisions beyond the first per day */
-  changes: number;
-  daysWithoutSchedule: number;
+  daysChanged: number;
+  daysEmergency: number;
 }
 
 export function summarizeComparisons(days: DayComparison[]): ComparisonSummary {
@@ -186,7 +231,7 @@ export function summarizeComparisons(days: DayComparison[]): ComparisonSummary {
     actualOffMs: sum(d => d.actualOffMs),
     unplannedOffMs: sum(d => d.unplannedOffMs),
     spareOnMs: sum(d => d.spareOnMs),
-    changes: sum(d => Math.max(0, d.revisions - 1)),
-    daysWithoutSchedule: days.filter(d => d.statuses.length > 0).length,
+    daysChanged: days.filter(d => d.changed).length,
+    daysEmergency: days.filter(d => d.emergency).length,
   };
 }

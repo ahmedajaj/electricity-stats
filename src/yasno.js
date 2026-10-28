@@ -1,4 +1,4 @@
-// Collects the planned outage schedule (ЯСНО / ДТЕК Київ) for our group.
+// Collects the planned outage schedule (ДТЕК Київ, via the Yasno API) for our group.
 // Yasno keeps no history, so every run stores a new revision whenever the
 // schedule for a day changes. Output: data/schedule.json
 //

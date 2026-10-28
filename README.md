@@ -8,10 +8,12 @@ them to a [GitHub Gist](https://gist.github.com/ahmedajaj/f73208e345aee68d11c31c
 the current status and statistics for any period, plus a live comparison of the Osokorky area with all of Kyiv
 (share of [svitlobot.in.ua](https://svitlobot.in.ua/map) points with power).
 
-**Plan vs actual.** ЯСНО publishes the planned outage schedule but keeps no history, so every cron run saves
+**Plan vs actual.** ДТЕК publishes (via the Yasno API) the planned outage schedule but keeps no history, so every cron run saves
 the schedule for group 37.1 to `data/schedule.json` (also uploaded to the Gist) whenever it changes. Each
 revision applies from its `updatedOn` time, so mid-day changes are compared fairly; periods when the schedule
-is not in force (`EmergencyShutdowns` etc.) are shown but not counted.
+is not in force (`EmergencyShutdowns` etc.) are shown but not counted. A day is marked "графік змінено" only if the
+plan in force differed from the first published schedule (placeholders and changes reverted before they took
+effect don't count).
 
 **Data format** (status changes, UTC):
 ```json
@@ -42,7 +44,7 @@ Set `SKIP_BATTERY=1` to skip the Deye battery message that is sent to Telegram w
 ```
 ├── src/                     # Node backend (CommonJS)
 │   ├── server.js            # Express: GET /api/events, /api/schedule, /api/areas + serves web/dist
-│   ├── yasno.js             # ЯСНО planned schedule (group 37.1) → data/schedule.json, every revision kept
+│   ├── yasno.js             # ДТЕК planned schedule (Yasno API) (group 37.1) → data/schedule.json, every revision kept
 │   ├── areaStats.js         # Live Osokorky / Kyiv on-off share from svitlobot.in.ua map feed
 │   ├── eventSource.js       # Events from Gist (fallback: data/events.json), read-only
 │   ├── scraper.js           # t.me/s/<channel> scraper → data/events.json
