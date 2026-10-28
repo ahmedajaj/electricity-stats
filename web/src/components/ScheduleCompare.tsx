@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { CalendarClock, CheckCheck, ChevronDown, PencilLine, Siren, SunMedium, ZapOff } from 'lucide-react';
 import type { Period } from '../lib/stats.ts';
 import type { DayComparison, PlanSegment, ScheduleArchive } from '../lib/schedule.ts';
-import { SCHEDULE_APPLIES, changeTimes, compareDay, latestPlan, summarizeComparisons } from '../lib/schedule.ts';
+import { SCHEDULE_APPLIES, changeTimes, compareDay, dayPromisedShare, latestPlan, summarizeComparisons } from '../lib/schedule.ts';
 import { addDays, dayBounds, dayKey } from '../lib/time.ts';
 import { fmtDayKey, fmtDayShort, fmtDuration, fmtPercent, fmtTime } from '../lib/format.ts';
 import { DayStrip, HourTicks } from './DayStrip.tsx';
 import { Tile } from './SummaryTiles.tsx';
 
 const COLLAPSED_DAYS = 7;
+const DAY_ROW = 'grid grid-cols-1 md:grid-cols-[8.5rem_1fr_15rem] gap-x-4 gap-y-2 md:items-center';
+/** Ignore a few minutes of mismatch around outage edges */
+const EDGE_MS = 5 * 60_000;
 
 interface Props {
   archive: ScheduleArchive;
@@ -89,9 +93,23 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
 
       {/* Totals since collection started */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-1">
-        <Tile wrap icon={<CheckCheck />} tone="emerald" label="Збіг з графіком" value={summary.matchShare == null ? '—' : fmtPercent(summary.matchShare)} hint="частка часу, коли факт = план" />
-        <Tile wrap icon={<ZapOff />} tone="rose" label="Поза графіком" value={fmtDuration(summary.unplannedOffMs)} hint="без світла, хоча не планували" />
-        <Tile wrap icon={<SunMedium />} tone="amber" label="Світло у плановий час" value={fmtDuration(summary.spareOnMs)} hint="планували, але світло було" />
+        <Tile
+          wrap
+          icon={<CheckCheck />}
+          tone="emerald"
+          label="Світло, коли обіцяли"
+          value={summary.promisedShare == null ? '—' : fmtPercent(summary.promisedShare)}
+          hint="частка часу без планових відключень, коли світло справді було"
+        />
+        <Tile wrap icon={<ZapOff />} tone="rose" label="Поза графіком" value={fmtDuration(summary.unplannedOffMs)} hint="без світла, хоча відключень не планували" />
+        <Tile
+          wrap
+          icon={<SunMedium />}
+          tone="amber"
+          label="Бонусне світло"
+          value={summary.spareOnMs > 0 ? `+${fmtDuration(summary.spareOnMs)}` : '0 хв'}
+          hint={summary.bonusShare == null ? 'світло під час планових відключень' : `світло під час планових відключень — ${fmtPercent(summary.bonusShare)} їхнього часу`}
+        />
         <Tile
           wrap
           icon={<PencilLine />}
@@ -133,23 +151,64 @@ function clipToDay(periods: Period[], start: number, end: number): Period[] {
 
 function DayRow({ day, periods }: { day: DayComparison; periods: Period[] }) {
   const [start, end] = dayBounds(day.key);
-  const share = day.comparableMs > 0 ? day.matchMs / day.comparableMs : null;
+  const kept = day.unplannedOffMs < EDGE_MS;
+  const hasPromise = dayPromisedShare(day) != null;
+  const hasPlannedOutages = day.plannedOffKnownMs > 0;
+
   return (
-    <div className="grid grid-cols-[1fr_auto] md:grid-cols-[7rem_1fr_10.5rem] gap-x-3 gap-y-1.5 items-center py-2.5">
-      <span className="text-xs text-slate-600 first-letter:uppercase">{fmtDayKey(day.key)}</span>
-      <div className="md:order-3 flex items-center justify-end gap-1.5">
-        {day.emergency && <span className="chip chip-off">екстрені</span>}
-        {day.changed && <span className="chip chip-neutral">графік змінено</span>}
-        <span className={`text-xs font-mono font-semibold ${share == null ? 'text-slate-400' : share >= 0.85 ? 'text-emerald-700' : share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>
-          {share == null ? '—' : fmtPercent(share)}
-        </span>
+    <div className={`${DAY_ROW} py-3`}>
+      <div>
+        <div className="text-sm text-slate-800 first-letter:uppercase">{fmtDayKey(day.key)}</div>
+        {(day.emergency || day.changed) && (
+          <div className="text-[11px] mt-0.5 space-x-2">
+            {day.emergency && <span className="text-rose-700">екстрені відключення</span>}
+            {day.changed && <span className="text-slate-500">графік змінювали</span>}
+          </div>
+        )}
       </div>
-      <div className="col-span-2 md:col-span-1 md:order-2 space-y-1">
+
+      <div className="grid grid-cols-[2.25rem_1fr] gap-x-2 gap-y-1 items-center">
+        <span className="text-[10px] text-slate-400">план</span>
         <PlanStrip start={start} end={end} plan={day.plan} height="h-2" />
+        <span className="text-[10px] text-slate-400">факт</span>
         <DayStrip start={start} end={end} periods={clipToDay(periods, start, end)} height="h-2" />
+      </div>
+
+      <div className="text-xs space-y-0.5">
+        {!hasPromise ? (
+          <div className="text-slate-500">Графік не діяв — порівнювати нема з чим</div>
+        ) : kept ? (
+          <div className="flex items-center gap-1 font-medium text-emerald-700">
+            <CheckCheck className="w-3.5 h-3.5 shrink-0" /> Графік дотримано
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-rose-700">
+            <ZapOff className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              <Num tone="rose">{fmtDuration(day.unplannedOffMs)}</Num> без світла поза графіком
+            </span>
+          </div>
+        )}
+        {hasPlannedOutages &&
+          (day.spareOnMs >= EDGE_MS ? (
+            <div className="flex items-center gap-1 text-emerald-700">
+              <SunMedium className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <Num tone="emerald">+{fmtDuration(day.spareOnMs)}</Num> світла замість відключень
+              </span>
+            </div>
+          ) : (
+            <div className="text-slate-500 pl-[1.125rem]">Планові відключення відбулися</div>
+          ))}
       </div>
     </div>
   );
+}
+
+/** A number inside a sentence: bold mono on a soft tint, so it stands out from the words */
+function Num({ tone, children }: { tone: 'emerald' | 'rose'; children: ReactNode }) {
+  const cls = tone === 'emerald' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+  return <span className={`font-mono font-semibold rounded px-1 py-px whitespace-nowrap ${cls}`}>{children}</span>;
 }
 
 function PlanStrip({ start, end, plan, now, markers = [], height = 'h-3.5' }: { start: number; end: number; plan: PlanSegment[]; now?: number; markers?: number[]; height?: string }) {

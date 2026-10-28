@@ -158,17 +158,21 @@ export interface DayComparison {
   changed: boolean;
   plannedOffMs: number;
   actualOffMs: number;
-  /** Time where plan and reality agree, among comparable time */
-  matchMs: number;
-  /** Time with a plan in force (on/off) and known actual status */
-  comparableMs: number;
-  /** No power although no outage was planned */
+  /** Time the plan promised power (and the actual status is known) */
+  promisedOnMs: number;
+  /** Time the plan had an outage (and the actual status is known) */
+  plannedOffKnownMs: number;
+  /** No power although no outage was planned — the bad surprise */
   unplannedOffMs: number;
-  /** Power was on during a planned outage */
+  /** Power was on during a planned outage — the good surprise */
   spareOnMs: number;
 }
 
-/** Minute-accurate overlap of plan and actual periods within [from, to) */
+/**
+ * Minute-accurate overlap of plan and actual periods within [from, to).
+ * The two kinds of mismatch are kept apart on purpose: an outage nobody planned is
+ * a broken promise, while power during a planned outage is a bonus.
+ */
 export function compareDay(key: string, revisions: Revision[] | undefined, periods: Period[], now: number): DayComparison {
   const [dayStart, dayEnd] = dayBounds(key);
   const to = Math.min(dayEnd, now);
@@ -180,8 +184,8 @@ export function compareDay(key: string, revisions: Revision[] | undefined, perio
     changed: planChanged(key, revisions, plan),
     plannedOffMs: 0,
     actualOffMs: 0,
-    matchMs: 0,
-    comparableMs: 0,
+    promisedOnMs: 0,
+    plannedOffKnownMs: 0,
     unplannedOffMs: 0,
     spareOnMs: 0,
   };
@@ -200,19 +204,37 @@ export function compareDay(key: string, revisions: Revision[] | undefined, perio
       const ms = b - a;
       const actual: Status = p.status;
       if (actual === 'off') result.actualOffMs += ms;
-      if (seg.kind !== 'on' && seg.kind !== 'off') continue;
-      result.comparableMs += ms;
-      if ((seg.kind === 'off') === (actual === 'off')) result.matchMs += ms;
-      else if (actual === 'off') result.unplannedOffMs += ms;
-      else result.spareOnMs += ms;
+      if (seg.kind === 'on') {
+        result.promisedOnMs += ms;
+        if (actual === 'off') result.unplannedOffMs += ms;
+      } else if (seg.kind === 'off') {
+        result.plannedOffKnownMs += ms;
+        if (actual === 'on') result.spareOnMs += ms;
+      }
     }
   }
   return result;
 }
 
+function ratio(part: number, whole: number): number | null {
+  return whole > 0 ? part / whole : null;
+}
+
+function promisedShare(promisedOnMs: number, unplannedOffMs: number): number | null {
+  return promisedOnMs > 0 ? 1 - unplannedOffMs / promisedOnMs : null;
+}
+
+/** Per day: share of promised-power time with power */
+export function dayPromisedShare(d: DayComparison): number | null {
+  return promisedShare(d.promisedOnMs, d.unplannedOffMs);
+}
+
 export interface ComparisonSummary {
   days: number;
-  matchShare: number | null;
+  /** Share of promised-power time when there really was power */
+  promisedShare: number | null;
+  /** Share of planned-outage time when there was power anyway */
+  bonusShare: number | null;
   plannedOffMs: number;
   actualOffMs: number;
   unplannedOffMs: number;
@@ -223,10 +245,10 @@ export interface ComparisonSummary {
 
 export function summarizeComparisons(days: DayComparison[]): ComparisonSummary {
   const sum = (f: (d: DayComparison) => number) => days.reduce((s, d) => s + f(d), 0);
-  const comparable = sum(d => d.comparableMs);
   return {
     days: days.length,
-    matchShare: comparable > 0 ? sum(d => d.matchMs) / comparable : null,
+    promisedShare: promisedShare(sum(d => d.promisedOnMs), sum(d => d.unplannedOffMs)),
+    bonusShare: ratio(sum(d => d.spareOnMs), sum(d => d.plannedOffKnownMs)),
     plannedOffMs: sum(d => d.plannedOffMs),
     actualOffMs: sum(d => d.actualOffMs),
     unplannedOffMs: sum(d => d.unplannedOffMs),
