@@ -3,6 +3,7 @@ import type { AreaStat, AreaStats as AreaStatsData } from '../hooks/useAreaStats
 import { fmtTime } from '../lib/format.ts';
 
 const SUBTITLES: Record<string, string> = {
+  patriotyka: 'Русової, Гмирі та Ващенка',
   osokorky: 'Позняки та Осокорки південніше проспекту Бажана',
   kyiv: 'Усе місто, без передмість',
 };
@@ -13,7 +14,7 @@ function tone(share: number) {
   return 'text-rose-600';
 }
 
-/** Live share of svitlobot.in.ua points with power: our area vs the whole city */
+/** Live share of svitlobot.in.ua points with power: our complex, our area and the whole city */
 export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error: string | null }) {
   if (!stats) {
     return error ? (
@@ -25,7 +26,7 @@ export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error
 
   return (
     <div className="card py-4 md:py-5">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         {stats.areas.map(a => (
           <AreaRow key={a.id} area={a} />
         ))}

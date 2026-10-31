@@ -1,4 +1,4 @@
-// Live on/off share for whole Kyiv and for the Osokorky area, from the public
+// Live on/off share for our housing complex, the Osokorky area and whole Kyiv, from the public
 // svitlobot.in.ua map feed (the one https://svitlobot.in.ua/map uses).
 // Undocumented API: keep polling gentle (cached here for 2 minutes).
 
@@ -14,7 +14,14 @@ const OSOKORKY = [
     [50.39205, 30.60174], [50.39610, 30.60459], [50.39870, 30.60899],
 ];
 
+// ЖК Патріотика: Русової 1–7А, Гмирі 8Б–18, Чавдар 8–38Б, Ващенка 1–3 (lat, lng)
+const PATRIOTYKA = [
+    [50.39310, 30.62620], [50.39310, 30.63090], [50.39130, 30.63160], [50.38800, 30.62990],
+    [50.38660, 30.62750], [50.38660, 30.62600], [50.38840, 30.62320], [50.39090, 30.62260],
+];
+
 const AREAS = [
+    { id: 'patriotyka', name: 'Патріотика', match: p => insidePolygon(p.lat, p.lng, PATRIOTYKA) },
     { id: 'osokorky', name: 'Осокорки', match: p => insidePolygon(p.lat, p.lng, OSOKORKY) },
     // Points named "Київ -> …" are the city itself (suburbs like Бровари have their own prefix)
     { id: 'kyiv', name: 'Київ', match: p => p.name.startsWith('Київ ->') },
