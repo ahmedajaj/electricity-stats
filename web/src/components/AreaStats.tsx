@@ -1,6 +1,8 @@
-import { Radio } from 'lucide-react';
+import { useState } from 'react';
+import { ChartLine, ChevronDown, Radio } from 'lucide-react';
 import type { AreaStat, AreaStats as AreaStatsData } from '../hooks/useAreaStats.ts';
 import { fmtTime } from '../lib/format.ts';
+import { AreaHistoryChart } from './AreaHistoryChart.tsx';
 
 const SUBTITLES: Record<string, string> = {
   patriotyka: 'Русової, Гмирі та Ващенка',
@@ -16,6 +18,8 @@ function tone(share: number) {
 
 /** Live share of svitlobot.in.ua points with power: our complex, our area and the whole city */
 export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error: string | null }) {
+  const [showHistory, setShowHistory] = useState(false);
+
   if (!stats) {
     return error ? (
       <div className="card text-sm text-slate-600">Не вдалося завантажити дані svitlobot.in.ua</div>
@@ -31,14 +35,31 @@ export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error
           <AreaRow key={a.id} area={a} />
         ))}
       </div>
-      <div className="flex items-center justify-end gap-1.5 mt-3 text-xs text-slate-500">
-        <Radio className="w-3.5 h-3.5 text-emerald-500" />
-        Частка точок зі світлом ·{' '}
-        <a className="underline underline-offset-2 hover:text-slate-900" href="https://svitlobot.in.ua/map" target="_blank" rel="noreferrer">
-          svitlobot.in.ua
-        </a>{' '}
-        · {fmtTime(stats.updatedAt)}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mt-3 text-xs text-slate-500">
+        <button
+          type="button"
+          aria-expanded={showHistory}
+          onClick={() => setShowHistory(v => !v)}
+          className="flex items-center gap-1.5 font-medium text-slate-700 hover:text-slate-900"
+        >
+          <ChartLine className="w-3.5 h-3.5" />
+          Історія
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+        </button>
+        <span className="flex items-center gap-1.5">
+          <Radio className="w-3.5 h-3.5 text-emerald-500" />
+          Частка точок зі світлом ·{' '}
+          <a className="underline underline-offset-2 hover:text-slate-900" href="https://svitlobot.in.ua/map" target="_blank" rel="noreferrer">
+            svitlobot.in.ua
+          </a>{' '}
+          · {fmtTime(stats.updatedAt)}
+        </span>
       </div>
+      {showHistory && (
+        <div className="inset p-3 md:p-4 mt-3">
+          <AreaHistoryChart areas={stats.areas} />
+        </div>
+      )}
     </div>
   );
 }
