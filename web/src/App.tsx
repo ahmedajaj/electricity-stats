@@ -65,10 +65,15 @@ export default function App() {
     const from = startOfDay(range.from);
     const to = Math.min(dayBounds(range.to)[1], now);
     const days = dailyStats(periods, outages, range.from, range.to);
+    // The calendar shows every month the range touches in full
+    const [y, m] = range.to.split('-').map(Number);
+    const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const calendarDays = dailyStats(periods, outages, `${range.from.slice(0, 7)}-01`, addDays(nextMonth, -1));
     const weekly = days.length > 62;
     return {
       periods,
       days,
+      calendarDays,
       weekly,
       buckets: bucketize(days, weekly),
       summary: summarize(periods, outages, from, to),
@@ -153,7 +158,7 @@ export default function App() {
             <DailyChart buckets={data.buckets} weekly={data.weekly} />
             <div className="grid gap-4 lg:grid-cols-2 items-start">
               <HourProfile profile={data.profile} />
-              <OutageCalendar days={data.days} today={today} />
+              <OutageCalendar days={data.calendarDays} today={today} />
             </div>
           </section>
 
