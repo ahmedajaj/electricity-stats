@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChartLine, ChevronDown, Radio } from 'lucide-react';
 import type { AreaStat, AreaStats as AreaStatsData } from '../hooks/useAreaStats.ts';
+import type { Period } from '../lib/stats.ts';
 import { fmtTime } from '../lib/format.ts';
 import { AreaHistoryChart } from './AreaHistoryChart.tsx';
 
@@ -17,7 +18,7 @@ function tone(share: number) {
 }
 
 /** Live share of svitlobot.in.ua points with power: our complex, our area and the whole city */
-export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error: string | null }) {
+export function AreaStats({ stats, error, periods }: { stats: AreaStatsData | null; error: string | null; periods: Period[] }) {
   const [showHistory, setShowHistory] = useState(false);
 
   if (!stats) {
@@ -57,7 +58,7 @@ export function AreaStats({ stats, error }: { stats: AreaStatsData | null; error
       </div>
       {showHistory && (
         <div className="inset p-3 md:p-4 mt-3">
-          <AreaHistoryChart areas={stats.areas} />
+          <AreaHistoryChart areas={stats.areas} periods={periods} />
         </div>
       )}
     </div>

@@ -126,7 +126,7 @@ export default function App() {
 
           <section>
             <SectionTitle n="02">Район і місто</SectionTitle>
-            <AreaStats stats={area.stats} error={area.error} />
+            <AreaStats stats={area.stats} error={area.error} periods={data.periods} />
           </section>
 
           {schedule.archive && (

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { TooltipContentProps } from 'recharts';
 import { useAreaHistory } from '../hooks/useAreaHistory.ts';
-import { AXIS, GRID, TICK } from '../lib/colors.ts';
+import { AXIS, GRID, OFF, ON, TICK } from '../lib/colors.ts';
 import { fmtDate, fmtTime } from '../lib/format.ts';
+import type { Period } from '../lib/stats.ts';
 
 const RANGES = [
   { days: 1, label: '24 год' },
@@ -49,9 +50,10 @@ function toPoints(rows: (number | null)[][], ids: string[], from: number, to: nu
   return points;
 }
 
-/** Share of points with power over time, one line per selected area */
-export function AreaHistoryChart({ areas }: { areas: { id: string; name: string }[] }) {
+/** Share of points with power over time, one line per selected area; optionally shaded by our own on/off periods */
+export function AreaHistoryChart({ areas, periods }: { areas: { id: string; name: string }[]; periods: Period[] }) {
   const [days, setDays] = useState(1);
+  const [showHome, setShowHome] = useState(false);
   const [selected, setSelected] = useState(() => new Set(areas.map(a => a.id)));
   const { history, error } = useAreaHistory(days);
 
@@ -60,6 +62,16 @@ export function AreaHistoryChart({ areas }: { areas: { id: string; name: string 
     const to = history.rows[history.rows.length - 1][0] as number;
     return toPoints(history.rows, history.ids, to - days * 24 * 60 * 60_000, to);
   }, [history, days]);
+
+  // Our on/off periods clipped to the chart's time span
+  const homeBands = useMemo(() => {
+    if (points.length < 2) return [];
+    const from = points[0].t;
+    const to = points[points.length - 1].t;
+    return periods
+      .filter(p => p.end > from && p.start < to)
+      .map(p => ({ status: p.status, x1: Math.max(p.start, from), x2: Math.min(p.end, to) }));
+  }, [periods, points]);
 
   const shown = areas.filter(a => selected.has(a.id) && history?.ids.includes(a.id));
   const fmtTick = (t: number) => (days === 1 ? fmtTime(t) : fmtDate(t));
@@ -78,6 +90,7 @@ export function AreaHistoryChart({ areas }: { areas: { id: string; name: string 
     if (!active || !payload?.length) return null;
     const d = payload[0].payload as Point;
     if (shown.every(a => d[a.id] == null)) return null;
+    const home = showHome ? periods.find(p => p.start <= d.t && d.t < p.end) : undefined;
     return (
       <div className="bg-white/95 backdrop-blur ring-1 ring-slate-200 rounded-xl px-3 py-2 shadow-lg text-sm">
         <p className="font-mono text-xs text-slate-600 mb-1">
@@ -89,6 +102,12 @@ export function AreaHistoryChart({ areas }: { areas: { id: string; name: string 
             {a.name} <span className="font-mono font-semibold text-slate-900 ml-auto pl-3">{d[a.id] ?? '—'}%</span>
           </p>
         ))}
+        {home && (
+          <p className={`flex items-center gap-1.5 mt-1 pt-1 border-t border-slate-200 ${home.status === 'on' ? 'text-emerald-700' : 'text-rose-700'}`}>
+            <span className="w-2 h-2 rounded-sm" style={{ background: home.status === 'on' ? ON : OFF }} />
+            Русової 7А: {home.status === 'on' ? 'є світло' : 'немає світла'}
+          </p>
+        )}
       </div>
     );
   };
@@ -114,6 +133,20 @@ export function AreaHistoryChart({ areas }: { areas: { id: string; name: string 
               </button>
             );
           })}
+          <button
+            type="button"
+            aria-pressed={showHome}
+            onClick={() => setShowHome(v => !v)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors ${
+              showHome ? 'bg-white text-slate-900 ring-slate-300 shadow-sm' : 'bg-transparent text-slate-500 ring-slate-200 hover:text-slate-900'
+            }`}
+          >
+            <span className="flex w-3 h-2 rounded-sm overflow-hidden">
+              <span className="flex-1" style={{ background: showHome ? ON : '#cbd5e1' }} />
+              <span className="flex-1" style={{ background: showHome ? OFF : '#e2e8f0' }} />
+            </span>
+            Світло в Русової 7А
+          </button>
         </div>
         <div className="seg">
           {RANGES.map(r => (
@@ -127,6 +160,10 @@ export function AreaHistoryChart({ areas }: { areas: { id: string; name: string 
         {points.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+              {showHome &&
+                homeBands.map(b => (
+                  <ReferenceArea key={b.x1} x1={b.x1} x2={b.x2} fill={b.status === 'on' ? ON : OFF} fillOpacity={b.status === 'on' ? 0.1 : 0.16} strokeOpacity={0} ifOverflow="hidden" />
+                ))}
               <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
               <XAxis
                 dataKey="t"
