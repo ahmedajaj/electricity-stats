@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { CalendarClock, CheckCheck, ChevronDown, PencilLine, Siren, SunMedium, ZapOff } from 'lucide-react';
+import { CalendarClock, CalendarDays, CheckCheck, ChevronDown, PencilLine, Siren, SunMedium, ZapOff } from 'lucide-react';
 import type { Period } from '../lib/stats.ts';
 import type { DayComparison, PlanSegment, ScheduleArchive } from '../lib/schedule.ts';
 import { SCHEDULE_APPLIES, changeTimes, compareDay, dayPromisedShare, latestPlan, summarizeComparisons } from '../lib/schedule.ts';
@@ -22,6 +22,7 @@ interface Props {
 
 /** ДТЕК planned schedule for our group vs what actually happened */
 export function ScheduleCompare({ archive, periods, now }: Props) {
+  const [showDays, setShowDays] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const today = dayKey(now);
   const tomorrow = addDays(today, 1);
@@ -123,19 +124,33 @@ export function ScheduleCompare({ archive, periods, now }: Props) {
         Рахується лише час, коли графік діяв. Періоди екстрених відключень не порівнюються.
       </p>
 
-      {/* Past days */}
+      {/* Past days, collapsed by default */}
       {pastDays.length === 0 ? (
         <div className="inset px-4 py-5 text-center text-sm text-slate-600">
           Історія по днях з’явиться завтра — ДТЕК не зберігає минулі графіки, тож ми збираємо їх самі.
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
-          {visibleDays.map(d => (
-            <DayRow key={d.key} day={d} periods={periods} />
-          ))}
-        </div>
+        <>
+          <button
+            type="button"
+            aria-expanded={showDays}
+            onClick={() => setShowDays(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900"
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            По днях ({pastDays.length})
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDays ? 'rotate-180' : ''}`} />
+          </button>
+          {showDays && (
+            <div className="divide-y divide-slate-100 mt-2">
+              {visibleDays.map(d => (
+                <DayRow key={d.key} day={d} periods={periods} />
+              ))}
+            </div>
+          )}
+        </>
       )}
-      {pastDays.length > COLLAPSED_DAYS && (
+      {showDays && pastDays.length > COLLAPSED_DAYS && (
         <button type="button" className="btn btn-secondary w-full mt-4" onClick={() => setExpanded(e => !e)}>
           {expanded ? 'Згорнути' : `Показати всі ${pastDays.length} днів`}
           <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
